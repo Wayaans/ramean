@@ -11,7 +11,7 @@ function applyRoleToolRestrictions(pi: ExtensionAPI, role: CanonicalAgentName): 
   const allTools = pi.getAllTools().map((tool) => tool.name);
 
   const filtered = allTools.filter((name) => {
-    if (name === "manage" || name === "dispatch") return false;
+    if (name === "dispatch") return false;
     if (role === "reviewer" && (name === "edit" || name === "write")) return false;
     return true;
   });
@@ -35,10 +35,10 @@ export function registerSubagentRuntime(pi: ExtensionAPI): boolean {
   });
 
   pi.on("tool_call", async (event) => {
-    if (event.toolName === "manage" || event.toolName === "dispatch") {
+    if (event.toolName === "dispatch") {
       return {
         block: true,
-        reason: "Subagents cannot use manage or dispatch.",
+        reason: "Subagents cannot use dispatch.",
       };
     }
 

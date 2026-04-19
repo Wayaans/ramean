@@ -1,9 +1,37 @@
 import type { AutocompleteItem } from "@mariozechner/pi-tui";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { createDispatchMessage } from "../UI/renderers.js";
+import type { DispatchDetails } from "../types/subagents.js";
 import { parseSpawnArgs } from "../core/utils.js";
 import { executeDispatch } from "../subagents/spawn.js";
+import { clearStandaloneDispatchWidget, updateStandaloneDispatchWidget } from "../subagents/standalone-widget.js";
 import { getSubagent, listSubagentNames } from "../subagents/agents.js";
+
+function createPendingDispatchMessage(agentName: string, task: string): DispatchDetails {
+  const agent = getSubagent(agentName) ?? getSubagent("agent")!;
+  return {
+    agent: agent.name,
+    title: agent.title,
+    shortName: agent.shortName,
+    icon: agent.icon,
+    task,
+    status: "running",
+    spinnerFrame: 0,
+    output: "",
+    warnings: [],
+    exitCode: 0,
+    usage: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      cost: 0,
+      contextTokens: 0,
+      turns: 0,
+    },
+    transcript: [],
+  };
+}
 
 function getArgumentCompletions(prefix: string): AutocompleteItem[] | null {
   const trimmed = prefix.trim().toLowerCase();
@@ -51,8 +79,8 @@ export function registerAgentSpawnCommand(pi: ExtensionAPI): void {
         return;
       }
 
-      ctx.ui.setStatus("ramean-spawn", `⚏ ${requestedAgent}`);
-      ctx.ui.setWorkingMessage(`Dispatching ${requestedAgent}...`);
+      const widgetKey = `spawn:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+      pi.sendMessage(createDispatchMessage(createPendingDispatchMessage(requestedAgent, task)));
 
       try {
         const details = await executeDispatch({
@@ -60,12 +88,14 @@ export function registerAgentSpawnCommand(pi: ExtensionAPI): void {
           requestedAgent,
           task,
           context: ctx,
+          onUpdate: (partial) => {
+            updateStandaloneDispatchWidget(ctx, widgetKey, partial);
+          },
         });
 
         pi.sendMessage(createDispatchMessage(details));
       } finally {
-        ctx.ui.setStatus("ramean-spawn", undefined);
-        ctx.ui.setWorkingMessage();
+        clearStandaloneDispatchWidget(ctx, widgetKey);
       }
     },
   });

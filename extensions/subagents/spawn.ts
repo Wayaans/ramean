@@ -6,8 +6,8 @@ import type { Message } from "@mariozechner/pi-ai";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { withFileMutationQueue } from "@mariozechner/pi-coding-agent";
 import { getSubagent, validAgentHint } from "./agents.js";
-import { getAgentConfig } from "./config.js";
 import { loadPromptResolution } from "./prompts.js";
+import { resolveEffectiveAgentRuntime } from "./runtime-config.js";
 import {
   basename,
   formatUsage,
@@ -17,6 +17,7 @@ import {
   summarizeText,
 } from "../core/utils.js";
 import type { CanonicalAgentName, DispatchDetails, DispatchUsage, TranscriptItem } from "../types/subagents.js";
+import { RUNNING_STATUS_FRAMES } from "../UI/status.js";
 
 export interface ExecuteDispatchOptions {
   cwd: string;
@@ -64,13 +65,15 @@ async function writePromptToTempFile(agent: CanonicalAgentName, prompt: string):
   return { dir, filePath };
 }
 
-function getFinalOutput(messages: Message[]): string {
+export function getFinalOutput(messages: Message[]): string {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
     if (message.role !== "assistant") continue;
-    for (const part of message.content) {
-      if (part.type === "text") return part.text;
-    }
+
+    return message.content
+      .filter((part): part is Extract<Message["content"][number], { type: "text" }> => part.type === "text")
+      .map((part) => part.text)
+      .join("");
   }
   return "";
 }
@@ -136,6 +139,7 @@ function createBaseDetails(agent: CanonicalAgentName, task: string): DispatchDet
     icon: subagent.icon,
     task,
     status: "running",
+    spinnerFrame: 0,
     output: "",
     warnings: [],
     exitCode: 0,
@@ -145,9 +149,16 @@ function createBaseDetails(agent: CanonicalAgentName, task: string): DispatchDet
 }
 
 function validateTask(agent: CanonicalAgentName, task: string): string | null {
-  if (agent === "designer" && !looksLikeDesignerTask(task)) {
+  const looksLikeUiTask = looksLikeDesignerTask(task);
+
+  if (agent === "agent" && looksLikeUiTask) {
+    return "Agent cannot handle UI/UX or front-end tasks. Use designer instead.";
+  }
+
+  if (agent === "designer" && !looksLikeUiTask) {
     return "Designer can only handle UI/UX or front-end tasks.";
   }
+
   return null;
 }
 
@@ -156,22 +167,14 @@ function resolveRequestedModel(
   agent: CanonicalAgentName,
   warnings: string[],
 ): { modelArg?: string; thinkingArg?: string } {
-  const config = getAgentConfig(context.cwd, agent);
-  const availableModels = context.modelRegistry.getAvailable();
-
-  let modelArg: string | undefined;
-  if (config.provider && config.model) {
-    const matched = availableModels.find((model) => model.provider === config.provider && model.id === config.model);
-    if (matched) {
-      modelArg = `${matched.provider}/${matched.id}`;
-    } else {
-      warnings.push(`Configured model ${config.provider}/${config.model} is not available. Falling back to pi defaults.`);
-    }
+  const resolved = resolveEffectiveAgentRuntime(context, agent);
+  if (resolved.fallbackNote) {
+    warnings.push(resolved.fallbackNote);
   }
 
   return {
-    modelArg,
-    thinkingArg: config.thinking,
+    modelArg: resolved.modelArg,
+    thinkingArg: resolved.thinking,
   };
 }
 
@@ -204,6 +207,7 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
 
   let tempPromptDir: string | null = null;
   let tempPromptPath: string | null = null;
+  let spinnerTimer: ReturnType<typeof setInterval> | null = null;
   const messages: Message[] = [];
 
   const emitUpdate = () => {
@@ -213,6 +217,12 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
   };
 
   try {
+    emitUpdate();
+    spinnerTimer = setInterval(() => {
+      details.spinnerFrame = (details.spinnerFrame + 1) % RUNNING_STATUS_FRAMES.length;
+      emitUpdate();
+    }, 120);
+
     if (promptResolution.prompt.trim()) {
       const temp = await writePromptToTempFile(agent, promptResolution.prompt);
       tempPromptDir = temp.dir;
@@ -315,9 +325,14 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
       details.output = "No output returned from subagent.";
     }
 
+    if (spinnerTimer) {
+      clearInterval(spinnerTimer);
+      spinnerTimer = null;
+    }
+
     if (exitCode !== 0 || details.stopReason === "error" || details.stopReason === "aborted") {
       details.status = "failed";
-      details.error = details.error ?? details.output || `Subagent exited with code ${exitCode}.`;
+      details.error = details.error ?? (details.output || `Subagent exited with code ${exitCode}.`);
     } else {
       details.status = "success";
     }
@@ -325,6 +340,10 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
     options.onUpdate?.(details);
     return details;
   } finally {
+    if (spinnerTimer) {
+      clearInterval(spinnerTimer);
+    }
+
     if (tempPromptPath) {
       try {
         fs.unlinkSync(tempPromptPath);

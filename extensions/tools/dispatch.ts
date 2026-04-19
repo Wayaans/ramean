@@ -1,6 +1,7 @@
 import type { ExtensionAPI, AgentToolResult } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { executeDispatch } from "../subagents/spawn.js";
+import { clearStandaloneDispatchWidget, updateStandaloneDispatchWidget } from "../subagents/standalone-widget.js";
 import { renderDispatchCall, renderDispatchResult } from "../UI/renderers.js";
 import type { DispatchDetails } from "../types/subagents.js";
 
@@ -17,30 +18,39 @@ export function registerDispatchTool(pi: ExtensionAPI): void {
     promptSnippet: "Dispatch a single task to agent, designer, or reviewer.",
     promptGuidelines: [
       "Use dispatch when you want one focused subagent to handle one task.",
-      "Do not ask a subagent to dispatch or manage other subagents.",
+      "When multiple subagents are needed, issue multiple top-level dispatch calls in parallel instead of looking for an orchestration tool.",
+      "Do not ask a subagent to dispatch other subagents.",
       "Use designer only for UI/UX or front-end work.",
       "Use reviewer for read-only review and analysis work.",
     ],
     parameters: DispatchParams,
-    async execute(_toolCallId, params, signal, onUpdate, ctx): Promise<AgentToolResult<DispatchDetails>> {
-      const details = await executeDispatch({
-        cwd: ctx.cwd,
-        requestedAgent: params.agent,
-        task: params.task,
-        context: ctx,
-        signal,
-        onUpdate: (partial) => {
-          onUpdate?.({
-            content: [{ type: "text", text: partial.output || "(running...)" }],
-            details: partial,
-          });
-        },
-      });
+    renderShell: "self",
+    async execute(toolCallId, params, signal, onUpdate, ctx): Promise<AgentToolResult<DispatchDetails>> {
+      const widgetKey = `tool:${toolCallId}`;
 
-      return {
-        content: [{ type: "text", text: details.output || details.error || "(no output)" }],
-        details,
-      };
+      try {
+        const details = await executeDispatch({
+          cwd: ctx.cwd,
+          requestedAgent: params.agent,
+          task: params.task,
+          context: ctx,
+          signal,
+          onUpdate: (partial) => {
+            updateStandaloneDispatchWidget(ctx, widgetKey, partial);
+            onUpdate?.({
+              content: [{ type: "text", text: partial.output || "(running...)" }],
+              details: partial,
+            });
+          },
+        });
+
+        return {
+          content: [{ type: "text", text: details.output || details.error || "(no output)" }],
+          details,
+        };
+      } finally {
+        clearStandaloneDispatchWidget(ctx, widgetKey);
+      }
     },
     renderCall(args, theme) {
       return renderDispatchCall(args, theme);

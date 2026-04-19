@@ -1,14 +1,15 @@
-extension: subagent
-agents:
-  agent:
-    provider: github-copilot
-    model: gpt-5.4
-    thinking: medium
-  designer:
-    provider: github-copilot
-    model: claude-sonnet-4.6
-    thinking: medium
-  reviewer:
-    provider: github-copilot
-    model: gpt-5.4-mini
-    thinking: high
+- extension: subagent
+  enabled: true
+  subagents:
+    agent:
+      - provider: github-copilot
+        model: gpt-5.4
+        thinking: medium
+    designer:
+      - provider: github-copilot
+        model: claude-sonnet-4.6
+        thinking: medium
+    reviewer:
+      - provider: github-copilot
+        model: gpt-5.4-mini
+        thinking: high

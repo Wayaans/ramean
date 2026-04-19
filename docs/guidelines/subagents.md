@@ -1,28 +1,56 @@
-# Subagent extensions inside ramean pi package
+# Subagent extension inside the ramean pi package
 
-I want the to make super lightweight and easy to use subagent extension that can be easily integrated into any project. The subagent extension will provide a simple interface for creating and managing subagents, allowing developers to quickly set up and use subagents without needing to worry about the underlying implementation details.
+Goal: keep the subagent extension lightweight, easy to understand, and easy to drop into any project.
 
-Subagent always available to use for main agent with crystal clear instruction and guidelines on how to use it effectively, and also with clear rules and limitations for subagents to ensure that they are used in a way that is consistent with the overall goals and objectives of the project.
+Subagents should always be available to the main agent with clear instructions, predictable behavior, and clear limits.
 
 ## Agents
 
-- Agent : AG : Clear and unprompted agent that can be used for various tasks and purposes except UI/UX and front end development.
-- Designer : DS : Prompted agent that can only be use for writing code about UI/UX or front end development.
-- Reviewer : RV : Prompted agent that can be used for reviewing code, providing feedback, and suggesting improvements.
+- Agent : `AG`
+  - general-purpose implementation and analysis subagent
+  - not for UI/UX or front-end work
+- Designer : `DS`
+  - prompted subagent for UI/UX and front-end code work only
+- Reviewer : `RV`
+  - prompted subagent for review, feedback, and analysis
+  - read-only
 
 ## Commands
 
-- /agent -> command to show interactive UI for managing each subagents, including model selection and thinking mode selection
-- /agent:prompt -> command to create append system_prompt or replace system_prompt for selected subagent and place it in project .pi/ramean/agents/ directory.
-- /agent:spawn -> command to dispatch subagent directly without doing conversation to main agent with specific task user provide after command. Example /agent:spawn reviewer help me find dead code in this codebase. /agent:spawn designer revamp dashboard icon to use bigger icon.
+- `/agent`
+  - opens an interactive settings UI
+  - home menu:
+    - Subagent settings
+    - Extension settings
+    - Finish
+  - submenus should include a clear `Back` action
+  - after finishing a sub-flow, return to the home menu instead of closing immediately
+  - extension settings should manage `enabled` only
+- `/agent:prompt`
+  - create an append or replace system prompt override for a selected subagent
+  - save under project `.pi/ramean/agents/`
+- `/agent:spawn`
+  - dispatch a subagent directly without routing through the main-agent conversation
+  - example:
+    - `/agent:spawn reviewer help me find dead code in this codebase`
+    - `/agent:spawn designer revamp dashboard icon to use bigger icon`
+  - still show that the agent was dispatched in conversation output
+  - show temporary live status in the widget while running
+  - do not render the full transcript in the final visible output by default; show the final result only
+- `/agent:status`
+  - show current subagent runtime, prompt state, and whether the extension is enabled
 
 ## System Prompt
 
-- Each subagent has default system prompt in markdown file under extensions/subagents/prompts/
-- System prompt subagent can be append or replace when in project level directory inside .pi/ramean/agents/ has markdown file name with name of the subagent. Example .pi/ramean/agents/reviewer.md, .pi/ramean/agents/designer.md, and .pi/ramean/agents/agent.md. The content of the markdown file will be used as system prompt for the subagent, and it can be append to the default system prompt or replace the default system prompt.
-- Subagent prompts is markdown file with front matter.
+- Each subagent has a default system prompt in `extensions/subagents/prompts/`
+- A project-level prompt can append to or replace the default prompt from `.pi/ramean/agents/<agent>.md`
+- Supported files:
+  - `.pi/ramean/agents/reviewer.md`
+  - `.pi/ramean/agents/designer.md`
+  - `.pi/ramean/agents/agent.md`
+- Prompt files use markdown with front matter
 
-### Example prompts subagent
+### Example subagent prompt
 
 ```markdown
 ---
@@ -37,11 +65,24 @@ Hard rules:
 - Three
 ```
 
+## Status indicator
+
+- `❖` : waiting
+- `⚏ ⚍ ⚎ ⚌` : running, animated like a braille spinner
+- `✔` : success
+- `✖` : failed
+
+Rules:
+
+- each status icon must use a different color
+- the running icon must animate while the subagent is active
+
 ## Configuration
 
-- Default to follow global config from this config extension.
-- Config can be overwrite if in project level directory inside .pi/ramean/config.yaml
-- if model that already set in global config not available, then inherit from main agent model with low thinking
+- Default behavior follows the global config from this extension
+- Project config can override it in `.pi/ramean/config.yaml`
+- If a configured model is unavailable, inherit the main agent model with `low` thinking
+- Ignore stale legacy `parallel.max` values silently
 
 ```yaml
 - extension: subagent
@@ -49,90 +90,99 @@ Hard rules:
   subagents:
     agent:
       - provider: github-copilot
-      - model: gpt-5.4
-      - thinking: medium
+        model: gpt-5.4
+        thinking: medium
     designer:
       - provider: github-copilot
-      - model: claude-sonnet-4.6
-      - thinking: medium
+        model: claude-sonnet-4.6
+        thinking: medium
     reviewer:
       - provider: github-copilot
-      - model: gpt-5.4-mini
-      - thinking: high
-- null
+        model: gpt-5.4-mini
+        thinking: high
 ```
 
 ## Tools
 
-- manage
-  - Description : Tools for managing subagents via dispatch tools, this is where to manage parallel, sequencing, and chain of subagents.
-  - Label name : Manage
-  - Short name : MG
-  - Icon : ❏
-  - Example usage :
-    - Parallel: ❏ Parallel [➽ Agent -- ➽ Agent -- ➽ Designer]
-    - Chain: ❏ Chain [➽ Agent -> ➽ Agent -> ➽ Designer]
-    - Single: ❏ Single [➽ Agent]
 - dispatch
-  - Description : This is tools for dispatching subagents to do specific tasks or delegating work to subagents.
+  - Description : dispatch one subagent to do one task
   - Label name : Dispatch
   - Short name : DP
-  - Icon : ➽
-  - Example usage : ➽ agent, ➽ designer, ➽ reviewer
+  - Icon : `➽`
+  - Canonical input shape : `{ agent, task }`
+  - Example usage : `➽ agent`, `➽ designer`, `➽ reviewer`
+  - Main-agent orchestration rule : when multiple subagents are needed, issue multiple top-level `dispatch` calls in parallel
 
 ## Rules
 
-- Subagents not allowed to use manage and dispatch tools, they can only be used by the main agent or the user to manage and dispatch subagents.
-- Subagents can use all tools, custom tools, skills, and commands except for manage and dispatch tools.
-- Only subagent reviewer that only has tool for read only, including bash read only. Not allowed to write, edit, and bash write. Still can use custom tools as long is read only tools.
+- Subagents cannot use `dispatch`
+- Subagents can use all normal tools, custom tools, skills, and commands except `dispatch`
+- Reviewer is read-only
+  - no `write`
+  - no `edit`
+  - no mutating `bash`
+  - custom tools are allowed only if they are read-only
 
 ## UI
 
-- manage: show in messages and widget pi, in messages only showing when the tools is being used, and in the widget above editor only show up when the tools is running managing subagents with live status icon.
-- dispatch: only showing in messages when the tools is being used, and show the subagent that is being dispatched, has live status icon showing when running, waiting, failed, and success.
+- dispatch
+  - show in messages while the tool is running
+  - show a temporary widget above the editor while a standalone dispatch is running
+  - show the selected subagent and live status icon
+  - final visible output should focus on task, result, and warnings/errors
+  - do not include the subagent transcript in the normal rendered output
+  - concurrent standalone dispatches aggregate into one shared widget
+- `/agent:spawn`
+  - use the same runtime, message shape, and widget contract as standalone `dispatch`
+  - final visible message should show the final response without dumping transcript history
 
-### Example UI for each tools
+### Example UI for each tool
 
-```manage tools in messages
-❏ Parallel [➽ Agent = ➽ Agent = ➽ Designer]
-```
+Tools UI style in messages:
 
-```manage tools in messages
-❏ Chain [➽ Agent ⟩ ➽ Agent ⟩ ➽ Designer]
-```
+- Create a custom UI card using pi-tui components
+- Container → stacks sections vertically
+- Text → simple text blocks
+- Spacer → empty space between sections
+- Markdown → renders final output nicely
+- Almost identical like tools calls from pi
 
-```manage tools in messages
-❏ Single [➽ Reviewer]
-```
+1. dispatch tools in messages (when dispatch call from /agent:spawn command also using this format in messages):
 
-```manage tools in widget
-⟩ MG:Parallel [⚏Agent ✔Agent ✖Designer ❖Reviewer]
-```
+- When not expanded:
 
-❖ : waiting
-⚏: running
-✔ : success
-✖ : failed
-
-```dispatch tools in messages
+```text
 ⚏ Reviewer ⟩ Review current codebase and provide feedback for ...
-└╍ Waiting streamline response...
+└╍ streamlined response from subagent in here
 ```
 
-```dispatch tools in messages
-⚏ Reviewer ⟩ Review current codebase and provide feedback for ...
-└╍ streamline response from subagent in here
-```
+- When expanded:
 
-```dispatch tools in messages expanded
+```text
 ✔ Reviewer ⟩ Review current codebase and provide feedback for ...
-└╍ streamline response from subagent in here
+└╍ streamlined response from subagent in here
 
 ❯ TASK :
 The original task that is being dispatched to the subagent.
 
 ❯ OUTPUT :
-the subagent’s final assistant response, rendered as Markdown
+The subagent final assistant response, rendered as Markdown.
 
-❯ WARNING/ERROR : only shown when the subagent encounter any warning or error during the process.
+❯ WARNING/ERROR : only shown when the subagent encounters any warning or error.
 ```
+
+2. dispatch tools in widget when get call from standalone `dispatch` or `/agent:spawn`:
+
+```text
+⟩ [⚏Reviewer]
+```
+
+```text
+⟩ [⚏Reviewer ✔Designer]
+```
+
+## Implementation note
+
+- Behavior and UI should match the contracts above.
+- There is no separate orchestration tool.
+- Parallel delegated work is expressed by multiple top-level `dispatch` calls, not by grouped tool nesting.

@@ -24,6 +24,7 @@
     "@sinclair/typebox": "*"
   },
   "devDependencies": {
+    "@types/node": "^24.5.2",
     "typescript": "^6.0.3"
   }
 }

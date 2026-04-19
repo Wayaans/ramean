@@ -165,86 +165,92 @@ export function parseSpawnArgs(rawArgs: string): { agent: string | null; task: s
 }
 
 export function isReadOnlyBash(command: string): boolean {
-  const normalized = command.trim().toLowerCase();
-  if (!normalized) return false;
+  const trimmed = command.trim();
+  if (!trimmed) return false;
 
-  const dangerousFragments = [
-    ">",
-    ">>",
-    "| tee",
-    " rm ",
-    " mv ",
-    " cp ",
-    " chmod ",
-    " chown ",
-    " touch ",
-    " mkdir ",
-    " rmdir ",
-    " sed -i",
-    " perl -pi",
-    " apply_patch",
-    " git commit",
-    " git push",
-    " git add",
-    " git restore",
-    " git checkout",
-    " git clean",
-    " npm install",
-    " pnpm add",
-    " yarn add",
-    " bun add",
-  ];
+  let quote: "'" | '"' | null = null;
+  for (let index = 0; index < trimmed.length; index += 1) {
+    const char = trimmed[index];
 
-  if (dangerousFragments.some((fragment) => normalized.includes(fragment))) {
-    return false;
+    if (quote === "'") {
+      if (char === "'") quote = null;
+      continue;
+    }
+
+    if (quote === '"') {
+      if (char === '"') quote = null;
+      if (char === "$" || char === "`" || char === "\\") return false;
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      quote = char;
+      continue;
+    }
+
+    if (/[\n\r|&;<>`$(){}\\]/.test(char)) {
+      return false;
+    }
   }
 
-  const segments = normalized
-    .split(/&&|\|\||;|\n/)
-    .map((segment) => segment.trim())
-    .filter(Boolean);
+  if (quote !== null) return false;
 
-  const allowedPrefixes = [
-    "cat ",
-    "head ",
-    "tail ",
-    "less ",
-    "more ",
-    "grep ",
-    "rg ",
-    "find ",
+  const args = parseCommandArgs(trimmed);
+  if (args.length === 0) return false;
+
+  const [commandName, ...rest] = args;
+  const normalizedCommand = commandName.toLowerCase();
+  const normalizedArgs = rest.map((arg) => arg.toLowerCase());
+
+  const safeSingleCommands = new Set([
+    "cat",
+    "head",
+    "tail",
+    "less",
+    "more",
+    "grep",
+    "rg",
     "ls",
     "pwd",
-    "which ",
-    "type ",
-    "echo ",
-    "printf ",
-    "file ",
-    "stat ",
-    "wc ",
-    "sort ",
+    "which",
+    "type",
+    "echo",
+    "printf",
+    "file",
+    "stat",
+    "wc",
     "uniq",
-    "cut ",
-    "awk ",
-    "sed ",
+    "cut",
     "tree",
-    "env",
     "printenv",
-    "git status",
-    "git diff",
-    "git show",
-    "git log",
-    "git branch",
-    "git grep",
-    "git rev-parse",
-    "git remote",
-    "npm ls",
-    "pnpm ls",
-    "yarn why",
-    "bun pm",
-  ];
+  ]);
 
-  return segments.every((segment) => allowedPrefixes.some((prefix) => segment === prefix.trim() || segment.startsWith(prefix)));
+  if (safeSingleCommands.has(normalizedCommand)) {
+    return true;
+  }
+
+  if (normalizedCommand === "git") {
+    const subcommand = normalizedArgs[0];
+    if (!subcommand) return false;
+    if (!["status", "diff", "show", "log", "grep", "rev-parse"].includes(subcommand)) {
+      return false;
+    }
+    return !normalizedArgs.slice(1).some((arg) => arg === "-c" || arg.startsWith("--config") || arg.startsWith("--exec-path") || arg.startsWith("--output"));
+  }
+
+  if (normalizedCommand === "npm") {
+    return normalizedArgs[0] === "ls";
+  }
+
+  if (normalizedCommand === "pnpm") {
+    return normalizedArgs[0] === "ls";
+  }
+
+  if (normalizedCommand === "yarn") {
+    return normalizedArgs[0] === "why";
+  }
+
+  return false;
 }
 
 export function formatReadOnlyBashError(command: string): string {

@@ -3,7 +3,6 @@ export type AgentAlias = "ag" | "ds" | "rv";
 export type AgentIdentifier = CanonicalAgentName | Uppercase<AgentAlias> | AgentAlias;
 export type PromptMode = "append" | "replace";
 export type DispatchStatus = "waiting" | "running" | "success" | "failed";
-export type ManageMode = "single";
 export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
 export interface AgentDefinition {
@@ -21,8 +20,17 @@ export interface AgentRuntimeConfig {
   thinking?: ThinkingLevel;
 }
 
+export interface ResolvedAgentRuntimeConfig {
+  provider?: string;
+  model?: string;
+  modelArg?: string;
+  thinking?: ThinkingLevel;
+  fallbackNote?: string;
+}
+
 export interface SubagentConfig {
   extension: "subagent";
+  enabled: boolean;
   agents: Record<CanonicalAgentName, AgentRuntimeConfig>;
 }
 
@@ -64,6 +72,7 @@ export interface DispatchDetails {
   icon: string;
   task: string;
   status: DispatchStatus;
+  spinnerFrame: number;
   output: string;
   warnings: string[];
   error?: string;
@@ -74,10 +83,20 @@ export interface DispatchDetails {
   transcript: TranscriptItem[];
 }
 
-export interface ManageDetails {
-  mode: ManageMode;
-  status: DispatchStatus;
-  dispatch: DispatchDetails;
+export interface AgentStatusRow {
+  agent: CanonicalAgentName;
+  title: string;
+  shortName: Uppercase<AgentAlias>;
+  provider?: string;
+  model?: string;
+  thinking?: ThinkingLevel;
+  promptState: string;
+  fallbackNote?: string;
+}
+
+export interface AgentStatusMessageDetails {
+  enabled: boolean;
+  agents: AgentStatusRow[];
 }
 
 export interface ProjectPromptFrontmatter {

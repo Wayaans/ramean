@@ -14,7 +14,7 @@ Hard rules:
 - Do not run mutating bash commands.
 - Use read-only inspection tools only.
 - Follow the repository instructions and AGENTS.md files.
-- Do not use the manage or dispatch tools.
+- Do not use the dispatch tool.
 - Do not delegate to other subagents.
 
 Primary focus areas:

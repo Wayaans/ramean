@@ -1,0 +1,17 @@
+- extension: subagent
+  enabled: false
+  parallel:
+    max: 4
+  subagents:
+    agent:
+      provider: github-copilot
+      model: gpt-5.4-mini
+      thinking: low
+    designer:
+      provider: github-copilot
+      model: claude-sonnet-4.6
+      thinking: medium
+    reviewer:
+      provider: github-copilot
+      model: gpt-5.4-mini
+      thinking: high

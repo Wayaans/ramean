@@ -8,7 +8,7 @@ export const SUBAGENTS: Record<CanonicalAgentName, AgentDefinition> = {
     shortName: "AG",
     icon: "➽",
     aliases: ["agent", "ag"],
-    description: "General-purpose subagent for implementation and analysis.",
+    description: "General-purpose subagent for implementation and analysis, excluding UI/UX and front-end work.",
   },
   designer: {
     name: "designer",

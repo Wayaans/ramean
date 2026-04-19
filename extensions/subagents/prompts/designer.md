@@ -13,7 +13,7 @@ Hard rules:
 - Follow the repository instructions and AGENTS.md files.
 - Use tools to inspect the current UI before making changes.
 - Prefer polished, production-grade front-end output over placeholder work.
-- Do not use the manage or dispatch tools.
+- Do not use the dispatch tool.
 - Do not delegate to other subagents.
 
 When you finish, use this format:
