@@ -3,8 +3,8 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import { getSubagent } from "../subagents/agents.js";
 import { buildAgentStatusSummary } from "../subagents/status.js";
-import { formatDispatchSummary } from "../subagents/spawn.js";
-import { formatUsage, titleCase } from "../core/utils.js";
+import { formatDispatchProgress, formatDispatchSummary } from "../subagents/spawn.js";
+import { summarizeText, titleCase } from "../core/utils.js";
 import type {
   AgentStatusMessageDetails,
   DispatchDetails,
@@ -14,6 +14,27 @@ import { renderStatusIcon } from "./status.js";
 
 export const DISPATCH_MESSAGE_TYPE = "ramean-dispatch";
 export const AGENT_STATUS_MESSAGE_TYPE = "ramean-agent-status";
+
+type RenderableComponent = {
+  render(width: number): string[];
+  invalidate?: () => void;
+};
+
+class LeftAccentCard {
+  constructor(
+    private readonly child: RenderableComponent,
+    private readonly accent: string,
+  ) {}
+
+  render(width: number): string[] {
+    const contentWidth = Math.max(1, width - 1);
+    return this.child.render(contentWidth).map((line) => `${this.accent}${line}`);
+  }
+
+  invalidate(): void {
+    this.child.invalidate?.();
+  }
+}
 
 function formatAgentLabel(agentName: string | undefined): string {
   if (!agentName) return "Agent";
@@ -28,16 +49,23 @@ function createTextStack(lines: string[]): Container {
   return container;
 }
 
-function getToolBackground(status: DispatchStatus): "toolPendingBg" | "toolSuccessBg" | "toolErrorBg" {
-  if (status === "success") return "toolSuccessBg";
-  if (status === "failed") return "toolErrorBg";
-  return "toolPendingBg";
+function createEmptyContainer(): Container {
+  return new Container();
 }
 
-function wrapToolCard(content: Container | Text, theme: any, status: DispatchStatus): Box {
-  const box = new Box(1, 1, (text) => theme.bg(getToolBackground(status), text));
+function getToolAccentColor(status: DispatchStatus): "success" | "error" | undefined {
+  if (status === "success") return "success";
+  if (status === "failed") return "error";
+  return undefined;
+}
+
+function wrapToolCard(content: Container | Text, theme: any, status: DispatchStatus) {
+  const box = new Box(1, 1, (text) => theme.bg("toolPendingBg", text));
   box.addChild(content);
-  return box;
+
+  const accentColor = getToolAccentColor(status);
+  if (!accentColor) return box;
+  return new LeftAccentCard(box, theme.fg(accentColor, "▏"));
 }
 
 function wrapCustomMessageCard(content: Container | Text, theme: any): Box {
@@ -46,21 +74,20 @@ function wrapCustomMessageCard(content: Container | Text, theme: any): Box {
   return box;
 }
 
+export function formatDispatchTaskPreview(task: string): string {
+  return summarizeText(task.replace(/\s+/g, " ").trim(), 140);
+}
+
 function createCollapsedDispatchLines(details: DispatchDetails, theme: any): string[] {
   const lines: string[] = [];
   lines.push(
-    `${renderStatusIcon(theme, details.status, details.spinnerFrame)} ${theme.fg("toolTitle", details.title)} ${theme.fg("muted", "⟩")} ${theme.fg("text", details.task)}`,
+    `${renderStatusIcon(theme, details.status, details.spinnerFrame)} ${theme.fg("toolTitle", details.title)} ${theme.fg("muted", "⟩")} ${theme.fg("text", formatDispatchTaskPreview(details.task))}`,
   );
 
   if (details.status === "running") {
-    lines.push(theme.fg("dim", "└╍ Waiting streamlined response..."));
+    lines.push(theme.fg("dim", `└╍ ${formatDispatchProgress(details)}`));
   } else {
     lines.push(theme.fg("dim", `└╍ ${formatDispatchSummary(details)}`));
-  }
-
-  const usage = formatUsage(details.usage, details.model);
-  if (usage) {
-    lines.push(theme.fg("dim", usage));
   }
 
   return lines;
@@ -70,13 +97,13 @@ function createExpandedDispatchComponent(details: DispatchDetails, theme: any) {
   const container = new Container();
   container.addChild(
     new Text(
-      `${renderStatusIcon(theme, details.status, details.spinnerFrame)} ${theme.fg("toolTitle", details.title)} ${theme.fg("muted", "⟩")} ${details.task}`,
+      `${renderStatusIcon(theme, details.status, details.spinnerFrame)} ${theme.fg("toolTitle", details.title)} ${theme.fg("muted", "⟩")} ${formatDispatchTaskPreview(details.task)}`,
       0,
       0,
     ),
   );
 
-  container.addChild(new Text(theme.fg("dim", `└╍ ${details.status === "running" ? "Waiting streamlined response..." : formatDispatchSummary(details)}`), 0, 0));
+  container.addChild(new Text(theme.fg("dim", `└╍ ${details.status === "running" ? formatDispatchProgress(details) : formatDispatchSummary(details)}`), 0, 0));
   container.addChild(new Spacer(1));
   container.addChild(new Text(theme.fg("accent", "❯ TASK :"), 0, 0));
   container.addChild(new Text(details.task, 0, 0));
@@ -89,12 +116,6 @@ function createExpandedDispatchComponent(details: DispatchDetails, theme: any) {
     container.addChild(new Text(theme.fg("warning", "❯ WARNING/ERROR :"), 0, 0));
     const text = [details.error, ...details.warnings].filter(Boolean).join("\n");
     container.addChild(new Text(text, 0, 0));
-  }
-
-  const usage = formatUsage(details.usage, details.model);
-  if (usage) {
-    container.addChild(new Spacer(1));
-    container.addChild(new Text(theme.fg("dim", usage), 0, 0));
   }
 
   return container;
@@ -129,20 +150,45 @@ export function formatDispatchWidget(details: DispatchDetails | DispatchDetails[
   return `${theme.fg("muted", "⟩")} [${labels.join(" ")}]`;
 }
 
-export function renderDispatchCall(args: { agent?: string; task?: string }, theme: any) {
-  const agent = formatAgentLabel(String(args.agent ?? "agent"));
-  const task = String(args.task ?? "");
-  return wrapToolCard(
-    createTextStack([`${theme.fg("toolTitle", "➽")} ${theme.fg("accent", agent)} ${theme.fg("muted", "⟩")} ${task}`]),
-    theme,
-    "running",
-  );
+export function renderDispatchCall(_args: { agent?: string; task?: string }, _theme: any) {
+  return createEmptyContainer();
 }
 
-export function renderDispatchResult(result: { details?: DispatchDetails }, options: { expanded: boolean; isPartial: boolean }, theme: any) {
+export function renderDispatchResult(
+  result: { details?: DispatchDetails },
+  options: { expanded: boolean; isPartial: boolean },
+  theme: any,
+  context?: { args?: { agent?: string; task?: string } },
+) {
   const details = result.details;
   if (!details) {
-    return wrapToolCard(createTextStack([theme.fg("muted", options.isPartial ? "Waiting..." : "No dispatch details.")]), theme, "running");
+    if (options.isPartial) {
+      const pending: DispatchDetails = {
+        agent: "agent",
+        title: formatAgentLabel(String(context?.args?.agent ?? "agent")),
+        shortName: "AG",
+        icon: "➽",
+        task: String(context?.args?.task ?? ""),
+        status: "running",
+        spinnerFrame: 0,
+        output: "",
+        streamlinedProgress: "Starting subagent...",
+        warnings: [],
+        exitCode: 0,
+        usage: {
+          input: 0,
+          output: 0,
+          cacheRead: 0,
+          cacheWrite: 0,
+          cost: 0,
+          contextTokens: 0,
+          turns: 0,
+        },
+        transcript: [],
+      };
+      return wrapToolCard(createTextStack(createCollapsedDispatchLines(pending, theme)), theme, "running");
+    }
+    return wrapToolCard(createTextStack([theme.fg("muted", "No dispatch details.")]), theme, "running");
   }
 
   if (!options.expanded) {

@@ -74,6 +74,7 @@ export interface DispatchDetails {
   status: DispatchStatus;
   spinnerFrame: number;
   output: string;
+  streamlinedProgress?: string;
   warnings: string[];
   error?: string;
   exitCode: number;

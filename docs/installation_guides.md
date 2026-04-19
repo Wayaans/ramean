@@ -85,5 +85,6 @@ Notes:
 ## UI notes
 
 - status indicators use different colors for waiting, running, success, and failure
+- completed dispatch cards keep the neutral tool background and add a left success/error accent instead of a full-card success/error fill
 - running indicators animate with braille spinner frames
 - concurrent standalone dispatches share one above-editor widget

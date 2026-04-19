@@ -1,5 +1,5 @@
 - extension: subagent
-  enabled: false
+  enabled: true
   parallel:
     max: 4
   subagents:

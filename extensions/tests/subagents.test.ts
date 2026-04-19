@@ -12,14 +12,20 @@ import {
   normalizeAgentName,
   parseSpawnArgs,
 } from "../core/utils.js";
-import { formatDispatchWidget, createDispatchMessage } from "../UI/renderers.js";
+import {
+  formatDispatchTaskPreview,
+  formatDispatchWidget,
+  createDispatchMessage,
+  renderDispatchCall,
+  renderDispatchResult,
+} from "../UI/renderers.js";
 import { getStatusGlyph } from "../UI/status.js";
 import {
   loadMergedSubagentConfig,
   updateProjectSubagentConfig,
   updateProjectSubagentEnabled,
 } from "../subagents/config.js";
-import { getFinalOutput } from "../subagents/spawn.js";
+import { formatDispatchProgress, getFinalOutput } from "../subagents/spawn.js";
 import { buildAgentStatusSummary, formatPromptState } from "../subagents/status.js";
 import type { DispatchDetails } from "../types/subagents.js";
 
@@ -38,6 +44,18 @@ const plainTheme = {
   fg(_token: string, text: string) {
     return text;
   },
+  bg(_token: string, text: string) {
+    return text;
+  },
+};
+
+const taggedTheme = {
+  fg(token: string, text: string) {
+    return `<${token}>${text}</${token}>`;
+  },
+  bg(token: string, text: string) {
+    return `{${token}}${text}{/${token}}`;
+  },
 };
 
 function createDispatchDetails(overrides: Partial<DispatchDetails> = {}): DispatchDetails {
@@ -50,6 +68,7 @@ function createDispatchDetails(overrides: Partial<DispatchDetails> = {}): Dispat
     status: "running",
     spinnerFrame: 0,
     output: "",
+    streamlinedProgress: "Starting subagent...",
     warnings: [],
     exitCode: 0,
     usage: {
@@ -252,11 +271,67 @@ test("final output concatenates all text parts from the last assistant message o
 });
 
 test("dispatch widget aggregates standalone dispatches", () => {
-  const reviewer = createDispatchDetails({ title: "Reviewer", status: "running", spinnerFrame: 0 });
+  const reviewer = createDispatchDetails({ title: "Reviewer", status: "running", spinnerFrame: 0, streamlinedProgress: "read docs/subagents.md" });
   const designer = createDispatchDetails({ agent: "designer", title: "Designer", shortName: "DS", status: "success" });
 
   assert.equal(formatDispatchWidget(reviewer, plainTheme), "⟩ [⚏Reviewer]");
   assert.equal(formatDispatchWidget([reviewer, designer], plainTheme), "⟩ [⚏Reviewer ✔Designer]");
+});
+
+test("dispatch call renderer returns an empty shell to avoid duplicate headers", () => {
+  const component = renderDispatchCall({ agent: "reviewer", task: "review repo" }, plainTheme);
+  assert.equal(String(component.constructor?.name ?? ""), "Container");
+});
+
+test("completed dispatch cards use a left accent instead of a full success background", () => {
+  const component = renderDispatchResult(
+    {
+      details: createDispatchDetails({
+        status: "success",
+        output: "Final answer",
+      }),
+    },
+    { expanded: false, isPartial: false },
+    taggedTheme,
+  );
+
+  const [firstLine] = component.render(100);
+  assert.match(firstLine ?? "", /^<success>▏<\/success>\{toolPendingBg\}/);
+  assert.doesNotMatch(firstLine ?? "", /toolSuccessBg/);
+});
+
+test("dispatch task preview truncates to one line", () => {
+  assert.equal(
+    formatDispatchTaskPreview("Inspect the current subagent implementation\nin this repository and trace how parallel top-level dispatches work now."),
+    "Inspect the current subagent implementation in this repository and trace how parallel top-level dispatches work now.",
+  );
+});
+
+test("running dispatch cards keep the normal tool background without a completion accent", () => {
+  const component = renderDispatchResult(
+    {
+      details: createDispatchDetails({
+        status: "running",
+        streamlinedProgress: "grep {\"pattern\":\"dispatch\"}",
+      }),
+    },
+    { expanded: false, isPartial: false },
+    taggedTheme,
+  );
+
+  const [firstLine] = component.render(100);
+  assert.match(firstLine ?? "", /^\{toolPendingBg\}/);
+  assert.doesNotMatch(firstLine ?? "", /<success>▏<\/success>|<error>▏<\/error>/);
+});
+
+test("dispatch progress prefers live streamlined progress", () => {
+  const details = createDispatchDetails({
+    status: "running",
+    streamlinedProgress: "grep {\"pattern\":\"dispatch\"}",
+    output: "Partial answer",
+  });
+
+  assert.equal(formatDispatchProgress(details), "grep {\"pattern\":\"dispatch\"}");
 });
 
 test("dispatch transcript message content prefers the final result over warnings", () => {

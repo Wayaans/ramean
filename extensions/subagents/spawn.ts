@@ -78,6 +78,14 @@ export function getFinalOutput(messages: Message[]): string {
   return "";
 }
 
+function getAssistantText(message: Message | undefined): string {
+  if (!message || message.role !== "assistant") return "";
+  return message.content
+    .filter((part): part is Extract<Message["content"][number], { type: "text" }> => part.type === "text")
+    .map((part) => part.text)
+    .join("");
+}
+
 function collectTranscript(messages: Message[]): TranscriptItem[] {
   const transcript: TranscriptItem[] = [];
 
@@ -130,6 +138,36 @@ function formatToolCall(name: string, args: Record<string, unknown>): string {
   return `${name} ${summarizeText(JSON.stringify(args), 80)}`;
 }
 
+function getLatestTranscriptSummary(details: DispatchDetails): string | undefined {
+  const item = details.transcript[details.transcript.length - 1];
+  if (!item) return undefined;
+  if (item.type === "text") {
+    const text = summarizeText(item.text, 120).trim();
+    return text || undefined;
+  }
+  return formatToolCall(item.name, item.args);
+}
+
+function summarizeToolResult(message: Message | undefined): string | undefined {
+  if (!message || message.role !== "toolResult") return undefined;
+  const text = message.content
+    .filter((part): part is Extract<Message["content"][number], { type: "text" }> => part.type === "text")
+    .map((part) => part.text)
+    .join("\n")
+    .trim();
+  return text ? summarizeText(text, 120) : undefined;
+}
+
+export function formatDispatchProgress(details: DispatchDetails): string {
+  return summarizeText(
+    details.streamlinedProgress
+      || getLatestTranscriptSummary(details)
+      || details.output
+      || `${details.title} is working...`,
+    120,
+  );
+}
+
 function createBaseDetails(agent: CanonicalAgentName, task: string): DispatchDetails {
   const subagent = getSubagent(agent)!;
   return {
@@ -141,6 +179,7 @@ function createBaseDetails(agent: CanonicalAgentName, task: string): DispatchDet
     status: "running",
     spinnerFrame: 0,
     output: "",
+    streamlinedProgress: "Starting subagent...",
     warnings: [],
     exitCode: 0,
     usage: emptyUsage(),
@@ -209,10 +248,20 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
   let tempPromptPath: string | null = null;
   let spinnerTimer: ReturnType<typeof setInterval> | null = null;
   const messages: Message[] = [];
+  let partialAssistantMessage: Message | undefined;
+  let liveToolProgress: string | undefined;
 
   const emitUpdate = () => {
-    details.output = getFinalOutput(messages) || details.output;
+    details.output = getFinalOutput(messages) || getAssistantText(partialAssistantMessage) || details.output;
     details.transcript = collectTranscript(messages);
+    details.streamlinedProgress = summarizeText(
+      liveToolProgress
+        || getAssistantText(partialAssistantMessage)
+        || getLatestTranscriptSummary(details)
+        || details.output
+        || "Starting subagent...",
+      120,
+    );
     options.onUpdate?.(details);
   };
 
@@ -258,9 +307,46 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
           return;
         }
 
+        if (event.type === "message_update" && event.message) {
+          const message = event.message as Message;
+          if (message.role === "assistant") {
+            partialAssistantMessage = message;
+            emitUpdate();
+          }
+          return;
+        }
+
+        if (event.type === "tool_execution_start") {
+          liveToolProgress = formatToolCall(String(event.toolName ?? "tool"), (event.args as Record<string, unknown> | undefined) ?? {});
+          emitUpdate();
+          return;
+        }
+
+        if (event.type === "tool_execution_update") {
+          const toolName = String(event.toolName ?? "tool");
+          const args = (event.args as Record<string, unknown> | undefined) ?? {};
+          const partialResult = event.partialResult as { content?: Array<{ type?: string; text?: string }> } | undefined;
+          const partialText = partialResult?.content
+            ?.filter((part) => part?.type === "text" && typeof part.text === "string")
+            .map((part) => part.text)
+            .join("\n")
+            .trim();
+          liveToolProgress = partialText
+            ? `${formatToolCall(toolName, args)} — ${summarizeText(partialText, 80)}`
+            : formatToolCall(toolName, args);
+          emitUpdate();
+          return;
+        }
+
+        if (event.type === "tool_execution_end") {
+          emitUpdate();
+          return;
+        }
+
         if (event.type === "message_end" && event.message) {
           const message = event.message as Message;
           messages.push(message);
+          partialAssistantMessage = undefined;
           accumulateUsage(details.usage, message);
           if (!details.model && message.role === "assistant" && message.model) {
             details.model = message.model;
@@ -268,11 +354,17 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
           if (message.role === "assistant" && message.stopReason) {
             details.stopReason = message.stopReason;
           }
+          if (message.role === "assistant") {
+            liveToolProgress = undefined;
+          }
           emitUpdate();
+          return;
         }
 
         if (event.type === "tool_result_end" && event.message) {
-          messages.push(event.message as Message);
+          const message = event.message as Message;
+          messages.push(message);
+          liveToolProgress = summarizeToolResult(message) ?? liveToolProgress;
           emitUpdate();
         }
       };
@@ -320,6 +412,7 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
     details.exitCode = exitCode;
     details.output = getFinalOutput(messages) || details.output;
     details.transcript = collectTranscript(messages);
+    details.streamlinedProgress = formatDispatchSummary(details);
 
     if (details.transcript.length === 0 && details.output === "" && details.error === undefined) {
       details.output = "No output returned from subagent.";

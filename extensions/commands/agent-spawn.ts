@@ -18,6 +18,7 @@ function createPendingDispatchMessage(agentName: string, task: string): Dispatch
     status: "running",
     spinnerFrame: 0,
     output: "",
+    streamlinedProgress: "Starting subagent...",
     warnings: [],
     exitCode: 0,
     usage: {
@@ -80,7 +81,7 @@ export function registerAgentSpawnCommand(pi: ExtensionAPI): void {
       }
 
       const widgetKey = `spawn:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
-      pi.sendMessage(createDispatchMessage(createPendingDispatchMessage(requestedAgent, task)));
+      updateStandaloneDispatchWidget(ctx, widgetKey, createPendingDispatchMessage(requestedAgent, task));
 
       try {
         const details = await executeDispatch({

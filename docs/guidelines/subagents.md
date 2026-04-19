@@ -127,13 +127,19 @@ Rules:
 
 - dispatch
   - show in messages while the tool is running
+  - completed message cards should keep the neutral tool background and use a left success/error accent instead of filling the whole card with success/error color
   - show a temporary widget above the editor while a standalone dispatch is running
   - show the selected subagent and live status icon
+  - keep the task preview truncated to one line in the header
+  - show a streamlined live progress summary from the latest subagent activity when available
   - final visible output should focus on task, result, and warnings/errors
+  - do not show usage tracking in the normal dispatch UI
   - do not include the subagent transcript in the normal rendered output
   - concurrent standalone dispatches aggregate into one shared widget
+  - widget stays compact and shows only the dispatch labels and live status icons
 - `/agent:spawn`
-  - use the same runtime, message shape, and widget contract as standalone `dispatch`
+  - use the same runtime and widget contract as standalone `dispatch`
+  - keep the shared widget compact while running
   - final visible message should show the final response without dumping transcript history
 
 ### Example UI for each tool

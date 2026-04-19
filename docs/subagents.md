@@ -24,7 +24,7 @@ Reference for the ramean subagent extension.
   - supports `append` and `replace`
 - `/agent:spawn`
   - dispatch one task directly to a subagent
-  - shows temporary live status above the editor while running
+  - shows temporary live status and streamlined progress above the editor while running
   - final rendered output shows the final response without transcript history
 - `/agent:status`
   - shows current subagent runtime and prompt state
@@ -122,9 +122,13 @@ Hard rules:
 ## UI
 
 - `dispatch` shows live running, waiting, failed, and success state in messages
+- completed dispatch cards keep the neutral tool background and add a left success/error accent instead of switching the whole card to a success/error fill
+- running dispatch UI shows streamlined live progress from the latest subagent activity when available
+- dispatch task previews are truncated to one line in the message header
 - `dispatch` and `/agent:spawn` render final output without transcript history in the normal visible UI
 - concurrent top-level dispatches aggregate into one shared above-editor widget
 - expanded results focus on task, output, and warnings/errors
+- usage tracking is not shown in the normal dispatch UI
 
 ## Files
 
