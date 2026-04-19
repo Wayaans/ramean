@@ -11,7 +11,13 @@ import { resolveEffectiveAgentRuntime } from "./runtime-config.js";
 import {
   basename,
   formatUsage,
+  looksLikeAdvisoryTask,
+  looksLikeAuthoringTask,
   looksLikeDesignerTask,
+  looksLikeImplementationTask,
+  looksLikeMixedReviewImplementationTask,
+  looksLikeReviewFeedbackTask,
+  looksLikeReviewTask,
   normalizeAgentName,
   shortenPath,
   summarizeText,
@@ -187,15 +193,37 @@ function createBaseDetails(agent: CanonicalAgentName, task: string): DispatchDet
   };
 }
 
-function validateTask(agent: CanonicalAgentName, task: string): string | null {
+export function validateDispatchTask(agent: CanonicalAgentName, task: string): string | null {
   const looksLikeUiTask = looksLikeDesignerTask(task);
+  const advisoryOnlyTask = looksLikeAdvisoryTask(task);
+  const reviewTask = looksLikeReviewTask(task);
+  const reviewFeedbackTask = looksLikeReviewFeedbackTask(task);
+  const authoringTask = looksLikeAuthoringTask(task);
+  const implementationTask = looksLikeImplementationTask(task);
+  const mixedReviewImplementationTask = looksLikeMixedReviewImplementationTask(task);
 
   if (agent === "agent" && looksLikeUiTask) {
     return "Agent cannot handle UI/UX or front-end tasks. Use designer instead.";
   }
 
+  if (agent === "agent" && (reviewFeedbackTask || (reviewTask && !implementationTask))) {
+    return "Agent should not handle review-only or feedback-only tasks. Use reviewer instead.";
+  }
+
   if (agent === "designer" && !looksLikeUiTask) {
     return "Designer can only handle UI/UX or front-end tasks.";
+  }
+
+  if (agent === "designer" && advisoryOnlyTask) {
+    return "Designer is for implementing UI/UX or front-end work, not advisory-only guidance. Use reviewer for feedback or agent for non-UI logic.";
+  }
+
+  if (agent === "designer" && reviewTask && !implementationTask) {
+    return "Designer is for implementing UI/UX or front-end work, not critique or review-only tasks. Use reviewer instead.";
+  }
+
+  if (agent === "reviewer" && (authoringTask || mixedReviewImplementationTask || (implementationTask && !reviewTask) || (looksLikeUiTask && !reviewTask))) {
+    return "Reviewer is read-only and only for review, feedback, or analysis. Use designer for UI implementation or agent for non-UI implementation instead.";
   }
 
   return null;
@@ -227,7 +255,7 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
     return details;
   }
 
-  const taskError = validateTask(agent, options.task);
+  const taskError = validateDispatchTask(agent, options.task);
   const promptResolution = loadPromptResolution(options.cwd, agent);
   const details = createBaseDetails(agent, options.task);
   details.warnings.push(...promptResolution.warnings);

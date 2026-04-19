@@ -59,11 +59,12 @@ test("subagent-only project config does not accidentally disable the tools exten
   assert.equal(config.tools.find_docs, true);
 });
 
-test("runtime tool config disables interactive question tools in subagents", () => {
+test("runtime tool config disables mutating and interactive custom tools in subagents", () => {
   const config = loadMergedToolConfig(fs.mkdtempSync(path.join(os.tmpdir(), "ramean-tools-runtime-")));
   const runtimeConfig = resolveRuntimeToolConfig(config, { isSubagentRuntime: true });
 
   assert.equal(runtimeConfig.grep, true);
+  assert.equal(runtimeConfig.todo_write, false);
   assert.equal(runtimeConfig.question, false);
   assert.equal(runtimeConfig.questionnaire, false);
 });

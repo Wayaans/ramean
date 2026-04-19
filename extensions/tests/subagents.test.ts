@@ -8,7 +8,11 @@ import type { Message } from "@mariozechner/pi-ai";
 import { parse, stringify } from "yaml";
 import {
   isReadOnlyBash,
+  looksLikeAdvisoryTask,
+  looksLikeAuthoringTask,
   looksLikeDesignerTask,
+  looksLikeImplementationTask,
+  looksLikeReviewTask,
   normalizeAgentName,
   parseSpawnArgs,
 } from "../core/utils.js";
@@ -25,7 +29,8 @@ import {
   updateProjectSubagentConfig,
   updateProjectSubagentEnabled,
 } from "../subagents/config.js";
-import { formatDispatchProgress, getFinalOutput } from "../subagents/spawn.js";
+import { upsertSubagentRules } from "../subagents/agents-md.js";
+import { formatDispatchProgress, getFinalOutput, validateDispatchTask } from "../subagents/spawn.js";
 import { buildAgentStatusSummary, formatPromptState } from "../subagents/status.js";
 import type { DispatchDetails } from "../types/subagents.js";
 
@@ -105,7 +110,74 @@ test("parseSpawnArgs supports positional and keyword syntax", () => {
 
 test("designer task heuristic is intentionally UI focused", () => {
   assert.equal(looksLikeDesignerTask("revamp dashboard icon sizes"), true);
+  assert.equal(looksLikeDesignerTask("make the sidebar collapse on mobile"), true);
+  assert.equal(looksLikeDesignerTask("fix mobile API timeout"), false);
   assert.equal(looksLikeDesignerTask("optimize postgres query plan"), false);
+});
+
+test("designer advisory and review heuristics separate implementation from feedback", () => {
+  assert.equal(looksLikeAuthoringTask("revamp dashboard icon sizes"), true);
+  assert.equal(looksLikeImplementationTask("revamp dashboard icon sizes"), true);
+  assert.equal(looksLikeReviewTask("review the current dashboard UI and give feedback"), true);
+  assert.equal(looksLikeAdvisoryTask("give feedback on how to write this login form UI"), true);
+  assert.equal(looksLikeAdvisoryTask("revamp dashboard icon sizes"), false);
+});
+
+test("designer dispatch validation rejects advisory-only and review-only UI tasks", () => {
+  assert.match(
+    validateDispatchTask("designer", "give feedback on how to write this login form UI") ?? "",
+    /advisory-only guidance/i,
+  );
+  assert.match(
+    validateDispatchTask("designer", "review the current dashboard UI and give feedback") ?? "",
+    /review-only tasks/i,
+  );
+  assert.equal(validateDispatchTask("designer", "revamp dashboard icon sizes"), null);
+  assert.equal(validateDispatchTask("designer", "make the sidebar collapse on mobile"), null);
+  assert.equal(validateDispatchTask("designer", "design the review page"), null);
+});
+
+test("agent dispatch validation rejects review-only tasks", () => {
+  assert.match(
+    validateDispatchTask("agent", "review this change and give feedback") ?? "",
+    /use reviewer instead/i,
+  );
+  assert.match(
+    validateDispatchTask("agent", "analyze this pull request and summarize the issues") ?? "",
+    /use reviewer instead/i,
+  );
+  assert.equal(validateDispatchTask("agent", "fix backend race condition in queue worker"), null);
+});
+
+test("reviewer dispatch validation rejects implementation-intent tasks", () => {
+  assert.match(
+    validateDispatchTask("reviewer", "implement the new dashboard shell") ?? "",
+    /reviewer is read-only/i,
+  );
+  assert.match(
+    validateDispatchTask("reviewer", "implement the new dashboard shell and review it") ?? "",
+    /reviewer is read-only/i,
+  );
+  assert.match(
+    validateDispatchTask("reviewer", "review and create tests for the new dashboard shell") ?? "",
+    /reviewer is read-only/i,
+  );
+  assert.match(
+    validateDispatchTask("reviewer", "review and implement the dashboard shell") ?? "",
+    /reviewer is read-only/i,
+  );
+  assert.match(
+    validateDispatchTask("reviewer", "design a new settings panel") ?? "",
+    /reviewer is read-only/i,
+  );
+  assert.match(
+    validateDispatchTask("reviewer", "improve the dashboard layout") ?? "",
+    /reviewer is read-only/i,
+  );
+  assert.equal(validateDispatchTask("reviewer", "review the new dashboard shell and summarize issues"), null);
+  assert.equal(validateDispatchTask("reviewer", "review the write path"), null);
+  assert.equal(validateDispatchTask("reviewer", "review the add button styling"), null);
+  assert.equal(validateDispatchTask("reviewer", "debug why the queue worker crashes"), null);
 });
 
 test("reviewer bash guard allows only simple read-only commands", () => {
@@ -118,6 +190,42 @@ test("reviewer bash guard allows only simple read-only commands", () => {
   assert.equal(isReadOnlyBash("echo $(touch /tmp/pwned)"), false);
   assert.equal(isReadOnlyBash("git diff | sh"), false);
   assert.equal(isReadOnlyBash("awk 'BEGIN { system(\"touch /tmp/pwned\") }'"), false);
+});
+
+test("agent rules block inserts without disturbing existing AGENTS content and stays idempotent", () => {
+  const original = ["# Project rules", "", "- Keep commits small."].join("\n");
+  const inserted = upsertSubagentRules(original);
+
+  assert.equal(inserted.action, "inserted");
+  assert.match(inserted.content, /# Project rules/);
+  assert.match(inserted.content, /## Ramean subagent hard rules/);
+  assert.match(inserted.content, /There are 3 subagents available through the `dispatch` tool/);
+  assert.ok(inserted.content.startsWith(original));
+
+  const secondPass = upsertSubagentRules(inserted.content);
+  assert.equal(secondPass.action, "unchanged");
+  assert.equal(secondPass.content, inserted.content);
+});
+
+test("agent rules block supports top insertion and managed refresh", () => {
+  const original = "\n# Project rules\n\n- Keep commits small.\n";
+  const inserted = upsertSubagentRules(original, "top");
+
+  assert.equal(inserted.action, "inserted");
+  assert.match(inserted.content, /^<!-- ramean-subagents:start -->/);
+  assert.ok(inserted.content.endsWith(original));
+
+  const stale = inserted.content.replace("## Ramean subagent hard rules", "## Old heading");
+  const refreshed = upsertSubagentRules(stale, "top");
+
+  assert.equal(refreshed.action, "updated");
+  assert.match(refreshed.content, /## Ramean subagent hard rules/);
+  assert.doesNotMatch(refreshed.content, /## Old heading/);
+
+  const duplicated = `${stale}\n\n${stale}`;
+  const deduped = upsertSubagentRules(duplicated, "top");
+  assert.equal(deduped.action, "updated");
+  assert.equal(deduped.content.match(/<!-- ramean-subagents:start -->/g)?.length ?? 0, 1);
 });
 
 test("status glyphs include braille spinner frames for running", () => {

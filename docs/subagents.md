@@ -4,9 +4,9 @@ Reference for the ramean subagent extension.
 
 ## Built-in subagents
 
-- `agent` (`AG`) — general-purpose implementation and analysis worker, excluding UI/UX and front-end work
-- `designer` (`DS`) — UI/UX and front-end specialist
-- `reviewer` (`RV`) — read-only review and analysis specialist
+- `agent` (`AG`) — general-purpose implementation and analysis worker for non-UI work
+- `designer` (`DS`) — UI/UX and front-end implementation specialist
+- `reviewer` (`RV`) — read-only review, feedback, and analysis specialist
 
 ## Commands
 
@@ -19,6 +19,10 @@ Reference for the ramean subagent extension.
   - submenus include `Back`
   - after saving a setting, returns to the home menu instead of closing immediately
   - extension settings only manage `enabled`
+- `/agent:insert`
+  - insert or refresh a managed subagent hard-rule block in an existing project `AGENTS.md`
+  - preserves existing content and appends the managed block by default
+  - optional position: `/agent:insert top` or `/agent:insert bottom`
 - `/agent:prompt`
   - create or edit a project prompt override in `.pi/ramean/agents/`
   - supports `append` and `replace`
@@ -27,7 +31,7 @@ Reference for the ramean subagent extension.
   - shows temporary live status and streamlined progress above the editor while running
   - final rendered output shows the final response without transcript history
 - `/agent:status`
-  - shows current subagent runtime and prompt state
+  - shows current subagent runtime, prompt state, and whether the extension is enabled
 
 ## Tools
 
@@ -88,7 +92,7 @@ Notes:
 - malformed ramean config files trigger a warning and fall back to defaults for that extension
 - if a configured subagent model is unavailable, the subagent falls back to the active main-agent model with `low` thinking
 - if `enabled: false`, the extension does not register `dispatch` or `/agent:spawn`
-- even when disabled, `/agent`, `/agent:prompt`, and `/agent:status` stay available
+- even when disabled, `/agent`, `/agent:insert`, `/agent:prompt`, and `/agent:status` stay available
 
 ## Prompt overrides
 
@@ -115,15 +119,20 @@ Hard rules:
 
 - subagents cannot use `dispatch`
 - subagents can use normal tools, skills, commands, and read-only custom tools
-- subagents cannot use the interactive question tools
+- subagents cannot use mutating or interactive custom tools
+  - no `todo_write`
   - no `question`
   - no `questionnaire`
 - reviewer is read-only
   - no `edit`
   - no `write`
   - no mutating `bash`
-- designer only accepts UI/UX and front-end work
+- reviewer is for review, feedback, and analysis only
+  - prefer reviewer as the final pass after non-trivial implementation
+- designer only accepts UI/UX and front-end implementation work
+  - no critique-only, feedback-only, advisory-only, or planning-only tasks
 - agent rejects UI/UX and front-end work
+  - review-only tasks should go to reviewer instead
 
 ## UI
 
@@ -143,6 +152,7 @@ Core implementation lives under:
 - `extensions/subagents/`
 - `extensions/tools/dispatch.ts`
 - `extensions/commands/agent.ts`
+- `extensions/commands/agent-insert.ts`
 - `extensions/commands/agent-prompt.ts`
 - `extensions/commands/agent-spawn.ts`
 - `extensions/commands/agent-status.ts`

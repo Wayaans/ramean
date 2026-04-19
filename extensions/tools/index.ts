@@ -366,10 +366,13 @@ export function registerCustomToolsExtension(pi: ExtensionAPI): void {
   });
 
   pi.on("tool_call", async (event, ctx) => {
-    if (isSubagentRuntime() && (event.toolName === "question" || event.toolName === "questionnaire")) {
+    if (isSubagentRuntime() && (event.toolName === "todo_write" || event.toolName === "question" || event.toolName === "questionnaire")) {
+      const reason = event.toolName === "todo_write"
+        ? "todo_write is only available to the main agent. Subagents cannot mutate the shared session todo list."
+        : `${event.toolName} is only available to the main agent. Subagents cannot use interactive question tools.`;
       return {
         block: true,
-        reason: `${event.toolName} is only available to the main agent. Subagents cannot use interactive question tools.`,
+        reason,
       };
     }
 

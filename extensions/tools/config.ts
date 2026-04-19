@@ -132,6 +132,7 @@ export function resolveRuntimeToolConfig(
   }
 
   if (options.isSubagentRuntime) {
+    tools.todo_write = false;
     tools.question = false;
     tools.questionnaire = false;
   }

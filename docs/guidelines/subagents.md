@@ -9,10 +9,13 @@ Subagents should always be available to the main agent with clear instructions, 
 - Agent : `AG`
   - general-purpose implementation and analysis subagent
   - not for UI/UX or front-end work
+  - not for review-only work when reviewer is the better fit
 - Designer : `DS`
-  - prompted subagent for UI/UX and front-end code work only
+  - prompted subagent for UI/UX and front-end implementation work only
+  - not for critique, feedback, review, or planning-only guidance
 - Reviewer : `RV`
-  - prompted subagent for review, feedback, and analysis
+  - prompted subagent for read-only review, feedback, and analysis
+  - preferred final pass after non-trivial implementation
   - read-only
 
 ## Commands
@@ -26,6 +29,10 @@ Subagents should always be available to the main agent with clear instructions, 
   - submenus should include a clear `Back` action
   - after finishing a sub-flow, return to the home menu instead of closing immediately
   - extension settings should manage `enabled` only
+- `/agent:insert`
+  - insert or refresh a managed subagent hard-rule block in an existing project `AGENTS.md`
+  - preserve existing `AGENTS.md` content and append the managed block by default
+  - support optional position argument: `top` or `bottom`
 - `/agent:prompt`
   - create an append or replace system prompt override for a selected subagent
   - save under project `.pi/ramean/agents/`
@@ -117,7 +124,8 @@ Rules:
 
 - Subagents cannot use `dispatch`
 - Subagents can use normal tools, skills, commands, and read-only custom tools
-- Subagents cannot use the interactive question tools
+- Subagents cannot use mutating or interactive custom tools
+  - no `todo_write`
   - no `question`
   - no `questionnaire`
 - Reviewer is read-only
@@ -125,6 +133,8 @@ Rules:
   - no `edit`
   - no mutating `bash`
   - custom tools are allowed only if they are read-only
+- Designer is for implementation, not critique-only or advisory-only work
+- Agent is for general coding and exploration, not UI implementation or review-only work
 
 ## UI
 

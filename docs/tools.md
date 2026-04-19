@@ -137,13 +137,13 @@ Subagents can use the read-only custom tools:
 - `grep`
 - `glob`
 - `list`
-- `todo_write`
 - `web_fetch`
 - `find_docs`
 
-Subagents cannot use the interactive question tools:
+Subagents cannot use mutating or interactive custom tools:
 
+- `todo_write`
 - `question`
 - `questionnaire`
 
-Those two tools are reserved for the main agent only.
+Those tools are reserved for the main agent only.

@@ -31,6 +31,8 @@ Ramean stores project overrides in:
 - `.pi/ramean/agents/designer.md`
 - `.pi/ramean/agents/reviewer.md`
 
+Ramean can also insert a managed subagent reminder block into an existing project `AGENTS.md` with `/agent:insert`.
+
 ## Config shape
 
 Default and project config support docs-style extension entries:
@@ -77,7 +79,7 @@ Default and project config support docs-style extension entries:
 Notes:
 
 - the `subagent` extension entry with `enabled: false` disables `dispatch` and `/agent:spawn`.
-- `/agent`, `/agent:prompt`, and `/agent:status` remain available even when subagents are disabled.
+- `/agent`, `/agent:insert`, `/agent:prompt`, and `/agent:status` remain available even when subagents are disabled.
 - the `tools` extension entry with `enabled: false` removes ramean custom tools from the default active tool set.
 - the `handoff` extension entry with `enabled: false` disables `/handoff`.
 - the `notify` extension entry with `enabled: false` disables terminal-ready notifications.
@@ -97,12 +99,16 @@ Notes:
     - `Finish`
   - submenus include `Back`
   - extension settings manage `enabled`
+- `/agent:insert`
+  - inserts or refreshes a managed subagent hard-rule block in an existing project `AGENTS.md`
+  - defaults to appending at the bottom
+  - supports `/agent:insert top` and `/agent:insert bottom`
 - `/agent:prompt`
 - `/agent:spawn`
   - shows temporary live status above the editor while the subagent runs
   - final rendered output shows the final response without transcript history
 - `/agent:status`
-  - shows current runtime and prompt state for each subagent
+  - shows current runtime, prompt state, and whether the subagent extension is enabled
 - `/tools:status`
   - shows available built-in and extension tools in current priority order
 - `/tools:compaction`
@@ -116,6 +122,10 @@ Subagent tool:
 
 - `dispatch` — dispatch one subagent directly
   - for parallel work, the main agent should issue multiple top-level `dispatch` calls
+  - use `agent` for general coding and exploration
+  - use `designer` only for UI/UX and front-end implementation work
+  - use `reviewer` only for read-only review, feedback, and analysis
+  - after non-trivial implementation, prefer a final `reviewer` pass unless the change is very small
 
 Custom top-level tools:
 
@@ -132,7 +142,7 @@ Custom top-level tools:
 Notes:
 
 - the main agent should prefer these dedicated tools before falling back to `bash`
-- subagents cannot use `question` or `questionnaire`
+- subagents cannot use `todo_write`, `question`, or `questionnaire`
 - subagents can still use the read-only custom tools
 - `/tools:compaction` and the built-in `/compact` use the same ramean custom compaction hook for the main agent
 - if `minimal-mode` is enabled, collapsed displays stay compact while `write` and `edit` keep their normal rendering
