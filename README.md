@@ -8,6 +8,7 @@ Right now this package ships:
 - custom top-level tools: grep, glob, list, todo_write, question, questionnaire, web_fetch, and find_docs
 - tools support commands: `/tools:status` and `/tools:compaction`
 - custom compaction using `github-copilot/gemini-3-flash-preview`
+- extra extensions: handoff, notify, and minimal-mode
 
 ## Included today
 
@@ -16,12 +17,13 @@ Right now this package ships:
 - [x] question
 - [x] questionnaire
 - [x] custom compaction
-- [ ] handoff
-- [ ] notify
-- [ ] minimal tools
+- [x] handoff
+- [x] notify
+- [x] minimal tools
 
 ## Docs
 
 - `docs/subagents.md`
 - `docs/tools.md`
+- `docs/others.md`
 - `docs/installation_guides.md`

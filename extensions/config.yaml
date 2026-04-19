@@ -25,3 +25,12 @@
     questionnaire: true
     web_fetch: true
     find_docs: true
+
+- extension: handoff
+  enabled: true
+
+- extension: notify
+  enabled: true
+
+- extension: minimal-mode
+  enabled: true

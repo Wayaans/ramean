@@ -1,7 +1,7 @@
 {
   "name": "ramean",
   "version": "0.1.0",
-  "description": "Ramean pi package with subagent orchestration extensions",
+  "description": "Ramean pi package collections",
   "type": "module",
   "keywords": [
     "pi-package",

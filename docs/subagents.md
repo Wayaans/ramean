@@ -84,6 +84,8 @@ Notes:
 
 - legacy compact config shapes are still supported
 - stale legacy `parallel.max` values are ignored silently
+- project config writes are normalized to docs-style extension entries
+- malformed ramean config files trigger a warning and fall back to defaults for that extension
 - if a configured subagent model is unavailable, the subagent falls back to the active main-agent model with `low` thinking
 - if `enabled: false`, the extension does not register `dispatch` or `/agent:spawn`
 - even when disabled, `/agent`, `/agent:prompt`, and `/agent:status` stay available

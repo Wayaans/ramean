@@ -1,5 +1,4 @@
-import fs from "node:fs";
-import { parse } from "yaml";
+import { readYamlFile } from "../core/config-file.js";
 import { getDefaultConfigPath, getProjectConfigPath } from "../core/paths.js";
 import { isRecord } from "../core/utils.js";
 import {
@@ -114,18 +113,9 @@ function mergeToolConfig(
   };
 }
 
-function readYamlFile(filePath: string): unknown {
-  if (!fs.existsSync(filePath)) return undefined;
-  try {
-    return parse(fs.readFileSync(filePath, "utf-8"));
-  } catch {
-    return undefined;
-  }
-}
-
 export function loadMergedToolConfig(cwd: string): ToolsExtensionConfig {
-  const defaults = extractToolConfig(readYamlFile(getDefaultConfigPath()));
-  const project = extractToolConfig(readYamlFile(getProjectConfigPath(cwd)));
+  const defaults = extractToolConfig(readYamlFile(getDefaultConfigPath(), "ramean default config"));
+  const project = extractToolConfig(readYamlFile(getProjectConfigPath(cwd), "ramean project config"));
   return mergeToolConfig(mergeToolConfig(emptyToolConfig(), defaults), project);
 }
 

@@ -50,6 +50,16 @@ Mappings:
 - `curl`, `wget` -> `web_fetch`
 - `ctx7`, `npx ctx7`, `bunx ctx7` -> `find_docs`
 
+## Minimal mode interaction
+
+When the `minimal-mode` extension is enabled:
+
+- collapsed tool displays stay compact
+- expanded tool displays still show the full result
+- `write` and `edit` are intentionally left unchanged
+- `todo_write`, `question`, and `questionnaire` keep their normal rendering
+- subagent runtime is not changed by `minimal-mode`
+
 ## Commands
 
 - `/tools:status`
@@ -108,6 +118,9 @@ Docs-style config example:
     questionnaire: true
     web_fetch: true
     find_docs: true
+
+- extension: minimal-mode
+  enabled: true
 ```
 
 Notes:
@@ -115,6 +128,7 @@ Notes:
 - project config overrides defaults
 - if `enabled: false`, ramean removes these custom tools from the default active tool set
 - individual tools can be enabled or disabled under the `tools` block
+- malformed ramean config files trigger a warning and fall back to defaults for the affected extension
 
 ## Subagents
 

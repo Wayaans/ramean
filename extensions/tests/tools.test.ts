@@ -202,3 +202,26 @@ test("custom compaction prompt includes previous summary and custom instructions
   assert.match(prompt, /Earlier summary/);
   assert.match(prompt, /<conversation>\n\n\[User\]: hi\n\n<\/conversation>/);
 });
+
+test("config parse failures are surfaced with a warning and fall back to defaults", () => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "ramean-tools-bad-yaml-"));
+  fs.mkdirSync(path.join(cwd, ".pi", "ramean"), { recursive: true });
+  fs.writeFileSync(path.join(cwd, ".pi", "ramean", "config.yaml"), "tools: [\n", "utf-8");
+
+  const errors: string[] = [];
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => {
+    errors.push(args.map(String).join(" "));
+  };
+
+  try {
+    const config = loadMergedToolConfig(cwd);
+    assert.equal(config.enabled, true);
+    assert.equal(config.tools.grep, true);
+  } finally {
+    console.error = originalError;
+  }
+
+  assert.equal(errors.length > 0, true);
+  assert.match(errors[0] ?? "", /failed to parse ramean project config/i);
+});

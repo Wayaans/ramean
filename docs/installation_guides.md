@@ -63,6 +63,15 @@ Default and project config support docs-style extension entries:
     questionnaire: true
     web_fetch: true
     find_docs: true
+
+- extension: handoff
+  enabled: true
+
+- extension: notify
+  enabled: true
+
+- extension: minimal-mode
+  enabled: true
 ```
 
 Notes:
@@ -70,8 +79,13 @@ Notes:
 - the `subagent` extension entry with `enabled: false` disables `dispatch` and `/agent:spawn`.
 - `/agent`, `/agent:prompt`, and `/agent:status` remain available even when subagents are disabled.
 - the `tools` extension entry with `enabled: false` removes ramean custom tools from the default active tool set.
+- the `handoff` extension entry with `enabled: false` disables `/handoff`.
+- the `notify` extension entry with `enabled: false` disables terminal-ready notifications.
+- the `minimal-mode` extension entry with `enabled: false` restores normal tool display behavior.
 - If a configured subagent model is unavailable, the subagent inherits the active main-agent model with `low` thinking.
 - Legacy compact config shapes are still accepted for backward compatibility.
+- Project config writes are normalized to docs-style extension entries.
+- If `.pi/ramean/config.yaml` is malformed, ramean warns and falls back to defaults for that extension.
 - Legacy `parallel.max` fields are ignored silently.
 
 ## Commands
@@ -93,6 +107,8 @@ Notes:
   - shows available built-in and extension tools in current priority order
 - `/tools:compaction`
   - triggers custom session compaction using `github-copilot/gemini-3-flash-preview`
+- `/handoff <goal>`
+  - generates a focused prompt for a new session from the current conversation
 
 ## Tools
 
@@ -119,6 +135,16 @@ Notes:
 - subagents cannot use `question` or `questionnaire`
 - subagents can still use the read-only custom tools
 - `/tools:compaction` and the built-in `/compact` use the same ramean custom compaction hook for the main agent
+- if `minimal-mode` is enabled, collapsed displays stay compact while `write` and `edit` keep their normal rendering
+
+## Other extensions
+
+- `handoff`
+  - adds `/handoff <goal>`
+- `notify`
+  - sends a terminal notification when the main agent is ready for input
+- `minimal-mode`
+  - enables compact tool rendering for most tools without changing `write` or `edit`
 
 ## UI notes
 

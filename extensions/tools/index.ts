@@ -13,6 +13,7 @@ import {
 import { Type } from "@sinclair/typebox";
 import { Text } from "@mariozechner/pi-tui";
 import { registerQuestionTools } from "../UI/question-tools.js";
+import { isMinimalToolDisplayEnabled } from "../others/minimal-mode.js";
 import { CUSTOM_TOOL_NAMES, type CustomToolConfigState, type CustomToolName } from "../types/tools.js";
 import { isCustomToolName, loadMergedToolConfig, resolveRuntimeToolConfig } from "./config.js";
 
@@ -141,6 +142,12 @@ export function registerCustomToolsExtension(pi: ExtensionAPI): void {
     async execute(toolCallId, params, signal, onUpdate, ctx) {
       return createGrepTool(ctx.cwd).execute(toolCallId, params, signal, onUpdate);
     },
+    renderResult(result, options) {
+      if (isMinimalCollapsed(options.expanded)) {
+        return new Text(formatMinimalCount(result, "matches"), 0, 0);
+      }
+      return renderTextResult(result);
+    },
   });
 
   pi.registerTool({
@@ -170,6 +177,12 @@ export function registerCustomToolsExtension(pi: ExtensionAPI): void {
         sortedBy: "mtime_desc",
       });
     },
+    renderResult(result, options) {
+      if (isMinimalCollapsed(options.expanded)) {
+        return new Text(formatMinimalCount(result, "files"), 0, 0);
+      }
+      return renderTextResult(result);
+    },
   });
 
   pi.registerTool({
@@ -188,6 +201,12 @@ export function registerCustomToolsExtension(pi: ExtensionAPI): void {
         glob: input.glob,
         count: output.count,
       });
+    },
+    renderResult(result, options) {
+      if (isMinimalCollapsed(options.expanded)) {
+        return new Text(formatMinimalCount(result, "entries"), 0, 0);
+      }
+      return renderTextResult(result);
     },
   });
 
@@ -238,8 +257,7 @@ export function registerCustomToolsExtension(pi: ExtensionAPI): void {
       if (details?.error) {
         return new Text(`Error: ${details.error}`, 0, 0);
       }
-      const text = result.content[0];
-      return new Text(text?.type === "text" ? text.text : "", 0, 0);
+      return renderTextResult(result);
     },
   });
 
@@ -263,6 +281,12 @@ export function registerCustomToolsExtension(pi: ExtensionAPI): void {
         status: response.status,
         contentType: response.headers.get("content-type") ?? undefined,
       });
+    },
+    renderResult(result, options) {
+      if (isMinimalCollapsed(options.expanded)) {
+        return new Text("", 0, 0);
+      }
+      return renderTextResult(result);
     },
   });
 
@@ -303,6 +327,12 @@ export function registerCustomToolsExtension(pi: ExtensionAPI): void {
         libraryId: resolvedLibraryId,
         query: input.query,
       });
+    },
+    renderResult(result, options) {
+      if (isMinimalCollapsed(options.expanded)) {
+        return new Text("", 0, 0);
+      }
+      return renderTextResult(result);
     },
   });
 
@@ -487,6 +517,22 @@ export function formatTodos(todos: StoredTodo[]): string {
       return `${marker} ${index + 1}. ${todo.content}`;
     })
     .join("\n");
+}
+
+function isMinimalCollapsed(expanded: boolean): boolean {
+  return isMinimalToolDisplayEnabled() && !expanded;
+}
+
+function renderTextResult(result: { content: Array<{ type: string; text?: string }> }) {
+  const text = result.content.find((content) => content.type === "text");
+  return new Text(text?.type === "text" ? (text.text ?? "") : "", 0, 0);
+}
+
+function formatMinimalCount(result: { content: Array<{ type: string; text?: string }> }, noun: string): string {
+  const text = result.content.find((content) => content.type === "text");
+  const value = text?.type === "text" ? (text.text ?? "") : "";
+  const count = value.trim() ? value.split("\n").filter(Boolean).length : 0;
+  return count > 0 ? `→ ${count} ${noun}` : "";
 }
 
 function buildMarkdownProxyUrl(input: string): string {

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Message } from "@mariozechner/pi-ai";
-import { stringify } from "yaml";
+import { parse, stringify } from "yaml";
 import {
   isReadOnlyBash,
   looksLikeDesignerTask,
@@ -226,15 +226,50 @@ test("project config updates preserve legacy object style when present", () => {
   });
 
   const savedText = fs.readFileSync(configPath, "utf-8");
-  assert.match(savedText, /^extension: subagent/m);
-  assert.match(savedText, /^agents:/m);
-  assert.doesNotMatch(savedText, /^subagents:/m);
-
-  const savedTextAfterUpdate = fs.readFileSync(configPath, "utf-8");
-  assert.doesNotMatch(savedTextAfterUpdate, /^parallel:/m);
+  assert.ok(savedText.startsWith("- extension: subagent"));
+  assert.doesNotMatch(savedText, /^  parallel:/m);
 
   const config = loadMergedSubagentConfig(cwd);
   assert.equal(config.agents.reviewer.model, "gpt-5.4-mini");
+});
+
+test("project config updates normalize mixed legacy config and preserve other extension entries", () => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "ramean-mixed-write-"));
+  fs.mkdirSync(path.join(cwd, ".pi", "ramean"), { recursive: true });
+  const configPath = path.join(cwd, ".pi", "ramean", "config.yaml");
+
+  fs.writeFileSync(
+    configPath,
+    stringify({
+      extension: "subagent",
+      enabled: true,
+      agents: {
+        agent: { provider: "openai", model: "gpt-4.1", thinking: "low" },
+        designer: {},
+        reviewer: {},
+      },
+      tools: {
+        enabled: false,
+        grep: false,
+      },
+      handoff: false,
+      notify: { enabled: false },
+      minimal_mode: false,
+    }),
+    "utf-8",
+  );
+
+  updateProjectSubagentEnabled(cwd, false);
+
+  const saved = parse(fs.readFileSync(configPath, "utf-8"));
+  assert.ok(Array.isArray(saved));
+  const entries = saved.filter((entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null);
+
+  assert.equal(entries.some((entry) => entry.extension === "subagent" && entry.enabled === false), true);
+  assert.equal(entries.some((entry) => entry.extension === "tools" && entry.enabled === false), true);
+  assert.equal(entries.some((entry) => entry.extension === "handoff" && entry.enabled === false), true);
+  assert.equal(entries.some((entry) => entry.extension === "notify" && entry.enabled === false), true);
+  assert.equal(entries.some((entry) => entry.extension === "minimal-mode" && entry.enabled === false), true);
 });
 
 test("final output concatenates all text parts from the last assistant message only", () => {

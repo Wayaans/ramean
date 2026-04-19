@@ -6,6 +6,10 @@ import { registerAgentSpawnCommand } from "./commands/agent-spawn.js";
 import { registerAgentStatusCommand } from "./commands/agent-status.js";
 import { registerToolsCompactionCommand } from "./commands/tools-compaction.js";
 import { registerToolsStatusCommand } from "./commands/tools-status.js";
+import { loadMergedOptionalExtensionsState } from "./others/config.js";
+import { registerHandoffCommand } from "./others/handoff.js";
+import { registerMinimalModeExtension } from "./others/minimal-mode.js";
+import { registerNotifyExtension } from "./others/notify.js";
 import { registerToolsCompactionExtension } from "./others/tools-compaction.js";
 import { isSubagentEnabled } from "./subagents/config.js";
 import { registerSubagentRuntime } from "./subagents/runtime.js";
@@ -29,6 +33,16 @@ export default function rameanExtensionPack(pi: ExtensionAPI, context?: Extensio
   registerAgentPromptCommand(pi);
 
   const cwd = context?.cwd ?? process.cwd();
+  const optionalExtensions = loadMergedOptionalExtensionsState(cwd);
+  if (optionalExtensions.minimalMode) {
+    registerMinimalModeExtension(pi);
+  }
+  if (optionalExtensions.handoff) {
+    registerHandoffCommand(pi);
+  }
+  if (optionalExtensions.notify) {
+    registerNotifyExtension(pi);
+  }
   if (!isSubagentEnabled(cwd)) {
     return;
   }

@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import { parse, stringify } from "yaml";
+import { stringify } from "yaml";
 import { listSubagentNames } from "./agents.js";
+import { readYamlFile } from "../core/config-file.js";
 import { getDefaultConfigPath, getProjectConfigPath } from "../core/paths.js";
 import { isRecord } from "../core/utils.js";
 import type {
@@ -148,15 +149,6 @@ function mergeConfigs(base: SubagentConfig, override: ExtractedSubagentConfig): 
   return merged;
 }
 
-function readYamlFile(filePath: string): unknown {
-  if (!fs.existsSync(filePath)) return undefined;
-  try {
-    return parse(fs.readFileSync(filePath, "utf-8"));
-  } catch {
-    return undefined;
-  }
-}
-
 function buildExtensionEntry(merged: SubagentConfig): Record<string, unknown> {
   return {
     extension: "subagent",
@@ -165,44 +157,110 @@ function buildExtensionEntry(merged: SubagentConfig): Record<string, unknown> {
   };
 }
 
-function buildProjectDocument(existingDocument: unknown, merged: SubagentConfig): unknown {
-  const extensionEntry = buildExtensionEntry(merged);
+type KnownProjectExtension = "subagent" | "tools" | "handoff" | "notify" | "minimal-mode";
 
+function normalizeKnownProjectExtension(value: unknown): KnownProjectExtension | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "subagent") return "subagent";
+  if (normalized === "tools") return "tools";
+  if (normalized === "handoff") return "handoff";
+  if (normalized === "notify") return "notify";
+  if (normalized === "minimal-mode" || normalized === "minimal_mode") return "minimal-mode";
+  return null;
+}
+
+function normalizeSimpleExtensionEntry(name: Exclude<KnownProjectExtension, "subagent" | "tools">, value: unknown): Record<string, unknown> | undefined {
+  if (typeof value === "boolean") {
+    return { extension: name, enabled: value };
+  }
+  if (!isRecord(value)) return undefined;
+  const entry: Record<string, unknown> = { ...value, extension: name };
+  return entry;
+}
+
+function normalizeToolsExtensionEntry(value: unknown): Record<string, unknown> | undefined {
+  if (!isRecord(value)) return undefined;
+  const { enabled, ...tools } = value;
+  const entry: Record<string, unknown> = { extension: "tools", tools };
+  if (typeof enabled === "boolean") {
+    entry.enabled = enabled;
+  }
+  return entry;
+}
+
+function extractNonSubagentProjectEntries(existingDocument: unknown): unknown[] {
   if (Array.isArray(existingDocument)) {
-    const entries = [...existingDocument];
-    const index = entries.findIndex((entry) => isRecord(entry) && entry.extension === "subagent");
-    if (index >= 0) entries[index] = extensionEntry;
-    else entries.push(extensionEntry);
-    return entries;
+    return existingDocument.filter((entry) => !(isRecord(entry) && normalizeKnownProjectExtension(entry.extension) === "subagent"));
   }
 
-  if (isRecord(existingDocument)) {
-    if (
-      existingDocument.extension === "subagent" ||
-      isRecord(existingDocument.agents) ||
-      isRecord(existingDocument.subagents) ||
-      isRecord(existingDocument.parallel) ||
-      typeof existingDocument.enabled === "boolean"
-    ) {
-      const { parallel: _parallel, extension: _extension, enabled: _enabled, agents: _agents, subagents: _subagents, ...rest } = existingDocument;
-      const useSubagents = isRecord(existingDocument.subagents);
-      return {
-        ...rest,
-        extension: "subagent",
-        enabled: merged.enabled,
-        ...(useSubagents
-          ? { subagents: merged.agents }
-          : { agents: merged.agents }),
-      };
+  if (!isRecord(existingDocument)) {
+    return [];
+  }
+
+  const entries: unknown[] = [];
+  const extension = normalizeKnownProjectExtension(existingDocument.extension);
+
+  if (extension && extension !== "subagent") {
+    entries.push({ ...existingDocument, extension });
+  }
+
+  if (extension !== "tools") {
+    const toolsEntry = normalizeToolsExtensionEntry(existingDocument.tools);
+    if (toolsEntry) {
+      entries.push(toolsEntry);
     }
-
-    return {
-      ...existingDocument,
-      subagent: extensionEntry,
-    };
   }
 
-  return [extensionEntry];
+  if (extension !== "handoff") {
+    const handoffEntry = normalizeSimpleExtensionEntry("handoff", existingDocument.handoff);
+    if (handoffEntry) {
+      entries.push(handoffEntry);
+    }
+  }
+
+  if (extension !== "notify") {
+    const notifyEntry = normalizeSimpleExtensionEntry("notify", existingDocument.notify);
+    if (notifyEntry) {
+      entries.push(notifyEntry);
+    }
+  }
+
+  if (extension !== "minimal-mode") {
+    const minimalModeEntry = normalizeSimpleExtensionEntry(
+      "minimal-mode",
+      existingDocument["minimal-mode"] ?? existingDocument.minimal_mode ?? existingDocument.minimalMode,
+    );
+    if (minimalModeEntry) {
+      entries.push(minimalModeEntry);
+    }
+  }
+
+  const {
+    extension: _extension,
+    enabled: _enabled,
+    parallel: _parallel,
+    agents: _agents,
+    subagents: _subagents,
+    subagent: _subagent,
+    tools: _tools,
+    handoff: _handoff,
+    notify: _notify,
+    minimalMode: _minimalMode,
+    minimal_mode: _minimalModeAlias,
+    "minimal-mode": _minimalModeKebab,
+    ...rest
+  } = existingDocument;
+
+  if (Object.keys(rest).length > 0) {
+    entries.push(rest);
+  }
+
+  return entries;
+}
+
+function buildProjectDocument(existingDocument: unknown, merged: SubagentConfig): unknown {
+  return [buildExtensionEntry(merged), ...extractNonSubagentProjectEntries(existingDocument)];
 }
 
 function writeProjectConfig(cwd: string, mutate: (config: SubagentConfig) => SubagentConfig): { path: string; saved: SubagentConfig } {
@@ -219,8 +277,8 @@ function writeProjectConfig(cwd: string, mutate: (config: SubagentConfig) => Sub
 }
 
 export function loadMergedSubagentConfig(cwd: string): SubagentConfig {
-  const defaults = extractConfigBlock(readYamlFile(getDefaultConfigPath()));
-  const project = extractConfigBlock(readYamlFile(getProjectConfigPath(cwd)));
+  const defaults = extractConfigBlock(readYamlFile(getDefaultConfigPath(), "ramean default config"));
+  const project = extractConfigBlock(readYamlFile(getProjectConfigPath(cwd), "ramean project config"));
   return mergeConfigs(mergeConfigs(emptyConfig(), defaults), project);
 }
 
