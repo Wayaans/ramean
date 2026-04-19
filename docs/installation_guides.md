@@ -1,4 +1,4 @@
-# Installation guide for ramean subagents
+# Installation guide for ramean
 
 ## Local package usage
 
@@ -33,7 +33,7 @@ Ramean stores project overrides in:
 
 ## Config shape
 
-Default and project config support the docs-style extension entry:
+Default and project config support docs-style extension entries:
 
 ```yaml
 - extension: subagent
@@ -51,12 +51,25 @@ Default and project config support the docs-style extension entry:
       - provider: github-copilot
         model: gpt-5.4-mini
         thinking: high
+
+- extension: tools
+  enabled: true
+  tools:
+    grep: true
+    glob: true
+    list: true
+    todo_write: true
+    question: true
+    questionnaire: true
+    web_fetch: true
+    find_docs: true
 ```
 
 Notes:
 
-- `enabled: false` disables `dispatch` and `/agent:spawn`.
+- the `subagent` extension entry with `enabled: false` disables `dispatch` and `/agent:spawn`.
 - `/agent`, `/agent:prompt`, and `/agent:status` remain available even when subagents are disabled.
+- the `tools` extension entry with `enabled: false` removes ramean custom tools from the default active tool set.
 - If a configured subagent model is unavailable, the subagent inherits the active main-agent model with `low` thinking.
 - Legacy compact config shapes are still accepted for backward compatibility.
 - Legacy `parallel.max` fields are ignored silently.
@@ -76,11 +89,36 @@ Notes:
   - final rendered output shows the final response without transcript history
 - `/agent:status`
   - shows current runtime and prompt state for each subagent
+- `/tools:status`
+  - shows available built-in and extension tools in current priority order
+- `/tools:compaction`
+  - triggers custom session compaction using `github-copilot/gemini-3-flash-preview`
 
 ## Tools
 
+Subagent tool:
+
 - `dispatch` — dispatch one subagent directly
   - for parallel work, the main agent should issue multiple top-level `dispatch` calls
+
+Custom top-level tools:
+
+- `grep`
+- `glob`
+- `list`
+- `todo_write`
+  - rendered output shows only the checklist text
+- `question`
+- `questionnaire`
+- `web_fetch`
+- `find_docs`
+
+Notes:
+
+- the main agent should prefer these dedicated tools before falling back to `bash`
+- subagents cannot use `question` or `questionnaire`
+- subagents can still use the read-only custom tools
+- `/tools:compaction` and the built-in `/compact` use the same ramean custom compaction hook for the main agent
 
 ## UI notes
 

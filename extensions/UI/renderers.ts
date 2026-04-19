@@ -4,16 +4,19 @@ import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import { getSubagent } from "../subagents/agents.js";
 import { buildAgentStatusSummary } from "../subagents/status.js";
 import { formatDispatchProgress, formatDispatchSummary } from "../subagents/spawn.js";
+import { buildToolsStatusSummary } from "../tools/status.js";
 import { summarizeText, titleCase } from "../core/utils.js";
 import type {
   AgentStatusMessageDetails,
   DispatchDetails,
   DispatchStatus,
 } from "../types/subagents.js";
+import type { ToolStatusRow, ToolsStatusMessageDetails } from "../types/tools.js";
 import { renderStatusIcon } from "./status.js";
 
 export const DISPATCH_MESSAGE_TYPE = "ramean-dispatch";
 export const AGENT_STATUS_MESSAGE_TYPE = "ramean-agent-status";
+export const TOOLS_STATUS_MESSAGE_TYPE = "ramean-tools-status";
 
 type RenderableComponent = {
   render(width: number): string[];
@@ -144,6 +147,58 @@ function createStatusComponent(details: AgentStatusMessageDetails, theme: any) {
   return container;
 }
 
+function createToolsStatusComponent(details: ToolsStatusMessageDetails, theme: any) {
+  const container = new Container();
+  container.addChild(new Text(theme.fg("toolTitle", "/tools:status"), 0, 0));
+  container.addChild(new Spacer(1));
+  container.addChild(new Text(theme.fg("accent", "❯ EXTENSION :"), 0, 0));
+  container.addChild(new Text(`enabled: ${details.enabled}`, 0, 0));
+  container.addChild(new Text(`runtime: ${details.runtime}`, 0, 0));
+  container.addChild(new Spacer(1));
+  container.addChild(new Text(theme.fg("accent", "❯ ACTIVE TOOLS :"), 0, 0));
+
+  if (details.activeTools.length === 0) {
+    container.addChild(new Text(theme.fg("muted", "none"), 0, 0));
+  } else {
+    for (const tool of details.activeTools) {
+      appendToolRow(container, tool, theme);
+    }
+  }
+
+  container.addChild(new Spacer(1));
+  container.addChild(new Text(theme.fg("accent", "❯ AVAILABLE BUT INACTIVE :"), 0, 0));
+  if (details.inactiveTools.length === 0) {
+    container.addChild(new Text(theme.fg("muted", "none"), 0, 0));
+  } else {
+    for (const tool of details.inactiveTools) {
+      appendToolRow(container, tool, theme);
+    }
+  }
+
+  container.addChild(new Spacer(1));
+  container.addChild(new Text(theme.fg("accent", "❯ DISABLED BY TOOLS CONFIG :"), 0, 0));
+  if (details.disabledByConfig.length === 0) {
+    container.addChild(new Text(theme.fg("muted", "none"), 0, 0));
+  } else {
+    for (const name of details.disabledByConfig) {
+      container.addChild(new Text(name, 0, 0));
+    }
+  }
+
+  return container;
+}
+
+function appendToolRow(container: Container, tool: ToolStatusRow, theme: any): void {
+  container.addChild(new Spacer(1));
+  const source = theme.fg("dim", `(${tool.source})`);
+  const title = tool.priority ? `${tool.priority}. ${tool.name}` : tool.name;
+  container.addChild(new Text(`${theme.fg("toolTitle", title)} ${source}`, 0, 0));
+  if (tool.active && tool.priority) {
+    container.addChild(new Text(`use order: #${tool.priority}`, 0, 0));
+  }
+  container.addChild(new Text(`summary: ${tool.description}`, 0, 0));
+}
+
 export function formatDispatchWidget(details: DispatchDetails | DispatchDetails[], theme: any): string {
   const dispatches = Array.isArray(details) ? details : [details];
   const labels = dispatches.map((dispatch) => `${renderStatusIcon(theme, dispatch.status, dispatch.spinnerFrame)}${theme.fg("text", dispatch.title)}`);
@@ -223,6 +278,15 @@ export function registerMessageRenderers(pi: ExtensionAPI): void {
     }
     return wrapCustomMessageCard(createStatusComponent(details, theme), theme);
   });
+
+  pi.registerMessageRenderer(TOOLS_STATUS_MESSAGE_TYPE, (message, _options, theme) => {
+    const details = message.details as ToolsStatusMessageDetails | undefined;
+    if (!details) {
+      const fallback = typeof message.content === "string" ? message.content : theme.fg("muted", "No tools status available.");
+      return wrapCustomMessageCard(createTextStack([fallback]), theme);
+    }
+    return wrapCustomMessageCard(createToolsStatusComponent(details, theme), theme);
+  });
 }
 
 export function createDispatchMessage(details: DispatchDetails) {
@@ -238,6 +302,15 @@ export function createStatusMessage(details: AgentStatusMessageDetails) {
   return {
     customType: AGENT_STATUS_MESSAGE_TYPE,
     content: buildAgentStatusSummary(details),
+    display: true,
+    details,
+  } as const;
+}
+
+export function createToolsStatusMessage(details: ToolsStatusMessageDetails) {
+  return {
+    customType: TOOLS_STATUS_MESSAGE_TYPE,
+    content: buildToolsStatusSummary(details),
     display: true,
     details,
   } as const;

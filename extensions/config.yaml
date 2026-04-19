@@ -13,3 +13,15 @@
       - provider: github-copilot
         model: gpt-5.4-mini
         thinking: high
+
+- extension: tools
+  enabled: true
+  tools:
+    grep: true
+    glob: true
+    list: true
+    todo_write: true
+    question: true
+    questionnaire: true
+    web_fetch: true
+    find_docs: true

@@ -116,7 +116,10 @@ Rules:
 ## Rules
 
 - Subagents cannot use `dispatch`
-- Subagents can use all normal tools, custom tools, skills, and commands except `dispatch`
+- Subagents can use normal tools, skills, commands, and read-only custom tools
+- Subagents cannot use the interactive question tools
+  - no `question`
+  - no `questionnaire`
 - Reviewer is read-only
   - no `write`
   - no `edit`

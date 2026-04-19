@@ -112,6 +112,10 @@ Hard rules:
 ## Rules
 
 - subagents cannot use `dispatch`
+- subagents can use normal tools, skills, commands, and read-only custom tools
+- subagents cannot use the interactive question tools
+  - no `question`
+  - no `questionnaire`
 - reviewer is read-only
   - no `edit`
   - no `write`
