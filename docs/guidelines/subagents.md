@@ -6,14 +6,14 @@ Subagent always available to use for main agent with crystal clear instruction a
 
 ## Agents
 
-- Agent : AG : Clear and unprompted agent that can be used for various tasks and purposes.
+- Agent : AG : Clear and unprompted agent that can be used for various tasks and purposes except UI/UX and front end development.
 - Designer : DS : Prompted agent that can only be use for writing code about UI/UX or front end development.
 - Reviewer : RV : Prompted agent that can be used for reviewing code, providing feedback, and suggesting improvements.
 
 ## Commands
 
 - /agent -> command to show interactive UI for managing each subagents, including model selection and thinking mode selection
-- /agent:prompt -> command to create append system_prompt or replace system_prompt for selected subagent and place it in project .pi/ramean/agent/ directory.
+- /agent:prompt -> command to create append system_prompt or replace system_prompt for selected subagent and place it in project .pi/ramean/agents/ directory.
 - /agent:spawn -> command to dispatch subagent directly without doing conversation to main agent with specific task user provide after command. Example /agent:spawn reviewer help me find dead code in this codebase. /agent:spawn designer revamp dashboard icon to use bigger icon.
 
 ## System Prompt
@@ -41,21 +41,24 @@ Hard rules:
 
 - Default to follow global config from this config extension.
 - Config can be overwrite if in project level directory inside .pi/ramean/config.yaml
+- if model that already set in global config not available, then inherit from main agent model with low thinking
 
 ```yaml
 - extension: subagent
-  agent:
-    - provider: github-copilot
-    - model: gpt-5.4
-    - thinking: medium
-  designer:
-    - provider: github-copilot
-    - model: claude-sonnet-4.6
-    - thinking: medium
-  reviewer:
-    - provider: github-copilot
-    - model: gpt-5.4-mini
-    - thinking: high
+  enabled: true
+  subagents:
+    agent:
+      - provider: github-copilot
+      - model: gpt-5.4
+      - thinking: medium
+    designer:
+      - provider: github-copilot
+      - model: claude-sonnet-4.6
+      - thinking: medium
+    reviewer:
+      - provider: github-copilot
+      - model: gpt-5.4-mini
+      - thinking: high
 - null
 ```
 

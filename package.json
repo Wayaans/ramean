@@ -1,5 +1,28 @@
 {
-  "dependencies": {},
+  "name": "ramean",
+  "version": "0.1.0",
+  "description": "Ramean pi package with subagent orchestration extensions",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi-coding-agent",
+    "subagents"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/index.ts"
+    ]
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-agent-core": "*",
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*",
+    "@sinclair/typebox": "*"
+  },
   "devDependencies": {
     "typescript": "^6.0.3"
   }
