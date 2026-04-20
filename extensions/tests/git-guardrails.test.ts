@@ -4,10 +4,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { parse, stringify } from "yaml";
+import { createGitGuardrailsStatusMessage } from "../UI/renderers.js";
 import {
   loadMergedGitGuardrailsConfig,
   updateProjectGitGuardrailsEnabled,
 } from "../others/git-guardrails-config.js";
+import { buildGitGuardrailsStatusSummary } from "../others/git-guardrails-status.js";
 import { findDangerousGitPattern } from "../others/git-guardrails.js";
 
 test("git-guardrails defaults to disabled", () => {
@@ -154,4 +156,46 @@ test("git-guardrails detects dangerous git commands and ignores safe ones", () =
   assert.equal(findDangerousGitPattern("bash -lc \"git push origin main\"")?.label, "git push");
   assert.equal(findDangerousGitPattern("git status"), null);
   assert.equal(findDangerousGitPattern("printf 'git push'"), null);
+});
+
+test("git-guardrails status summary clearly shows enabled state and reload info", () => {
+  const summary = buildGitGuardrailsStatusSummary({
+    enabled: true,
+    configPath: "/tmp/.pi/ramean/config.yaml",
+    reloading: true,
+  });
+
+  assert.match(summary, /\/guardrails:git/);
+  assert.match(summary, /state: enabled/);
+  assert.match(summary, /dangerous git bash commands are blocked/);
+  assert.match(summary, /project override path: \/tmp\/\.pi\/ramean\/config\.yaml/);
+  assert.match(summary, /reloading now so the new state applies immediately/);
+  assert.match(summary, /use \/guardrails:git enable\|disable\|status/);
+});
+
+test("git-guardrails status summary clearly shows disabled state", () => {
+  const summary = buildGitGuardrailsStatusSummary({
+    enabled: false,
+    configPath: "/tmp/.pi/ramean/config.yaml",
+    reloading: false,
+  });
+
+  assert.match(summary, /state: disabled/);
+  assert.match(summary, /git bash commands are allowed to run normally/);
+  assert.match(summary, /already using the current state/);
+});
+
+test("git-guardrails status message uses the persistent custom message payload", () => {
+  const details = {
+    enabled: true,
+    configPath: "/tmp/.pi/ramean/config.yaml",
+    reloading: true,
+  } as const;
+
+  const message = createGitGuardrailsStatusMessage(details);
+
+  assert.equal(message.customType, "ramean-git-guardrails-status");
+  assert.equal(message.display, true);
+  assert.equal(message.details, details);
+  assert.match(String(message.content), /state: enabled/);
 });

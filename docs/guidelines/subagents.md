@@ -44,6 +44,11 @@ Subagents should always be available to the main agent with clear instructions, 
   - still show that the agent was dispatched in conversation output
   - show temporary live status in the widget while running
   - do not render the full transcript in the final visible output by default; show the final result only
+- `/agent:expand`
+  - toggle dispatch-only expansion for subagent dispatch cards
+  - support optional args: `toggle`, `expand`, `collapse`, and `status`
+  - leave non-dispatch tool output unchanged
+  - keep the state session-local and let it reset on reload
 - `/agent:status`
   - show current subagent runtime, prompt state, and whether the extension is enabled
 
@@ -151,6 +156,8 @@ Rules:
   - final visible output should focus on task, result, and warnings/errors
   - do not show usage tracking in the normal dispatch UI
   - do not include the subagent transcript in the normal rendered output
+  - support dispatch-only expansion via `Ctrl+Shift+O` and `/agent:expand` without changing other tool cards
+  - dispatch-only expansion state should be session-local and reset on reload
   - concurrent standalone dispatches aggregate into one shared widget
   - widget stays compact and shows only the dispatch labels and live status icons
 - `/agent:spawn`

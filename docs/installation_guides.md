@@ -82,7 +82,7 @@ Default and project config support docs-style extension entries:
 Notes:
 
 - the `subagent` extension entry with `enabled: false` disables `dispatch` and `/agent:spawn`.
-- `/agent`, `/agent:insert`, `/agent:prompt`, and `/agent:status` remain available even when subagents are disabled.
+- `/agent`, `/agent:expand`, `/agent:insert`, `/agent:prompt`, and `/agent:status` remain available even when subagents are disabled.
 - the `tools` extension entry with `enabled: false` removes ramean custom tools from the default active tool set.
 - the `handoff` extension entry with `enabled: false` disables `/handoff`.
 - the `notify` extension entry with `enabled: false` disables terminal-ready notifications.
@@ -111,6 +111,10 @@ Notes:
 - `/agent:spawn`
   - shows temporary live status above the editor while the subagent runs
   - final rendered output shows the final response without transcript history
+- `/agent:expand`
+  - toggles dispatch-only expansion for subagent dispatch cards
+  - optional args: `toggle`, `expand`, `collapse`, and `status`
+  - state is session-local and resets on reload
 - `/agent:status`
   - shows current runtime, prompt state, and whether the subagent extension is enabled
 - `/tools:status`
@@ -122,6 +126,7 @@ Notes:
 - `/guardrails:git`
   - toggles git-guardrails on or off
   - optional args: `enable`, `disable`, and `status`
+  - shows a persistent status message with the current enabled/disabled state and project override path
   - reloads the extension runtime after state changes so the guard applies immediately
 
 ## Tools
@@ -172,5 +177,7 @@ Notes:
 
 - status indicators use different colors for waiting, running, success, and failure
 - completed dispatch cards keep the neutral tool background and add a left success/error accent instead of a full-card success/error fill
+- `Ctrl+Shift+O` toggles dispatch-only expansion for subagent dispatch cards without changing other tool output
+- dispatch-only expansion state is session-local and resets on reload
 - running indicators animate with braille spinner frames
 - concurrent standalone dispatches share one above-editor widget

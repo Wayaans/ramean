@@ -26,11 +26,13 @@ Right now this package ships:
 - [x] minimal tools
 - [x] git guardrails
 
-Useful commands include `/agent`, `/agent:insert`, `/agent:prompt`, `/agent:spawn`, `/agent:status`, `/tools:status`, `/tools:compaction`, `/handoff`, and `/guardrails:git`.
+Useful commands include `/agent`, `/agent:expand`, `/agent:insert`, `/agent:prompt`, `/agent:spawn`, `/agent:status`, `/tools:status`, `/tools:compaction`, `/handoff`, and `/guardrails:git`.
 
 `/agent:insert` adds or refreshes a managed hard-rule reminder in an existing project `AGENTS.md` so the main agent keeps the subagent routing rules in view.
 
-`/guardrails:git` toggles the git-guardrails extension, which is disabled by default and blocks common dangerous git bash commands such as `git push` and `git reset --hard` when enabled.
+`/agent:expand` and `Ctrl+Shift+O` control dispatch-only expansion for subagent dispatch cards without changing other tool output. `/agent:expand` supports `toggle`, `expand`, `collapse`, and `status`. This preference is session-local and resets on reload.
+
+`/guardrails:git` toggles the git-guardrails extension, which is disabled by default and blocks common dangerous git bash commands such as `git push` and `git reset --hard` when enabled. The command now leaves a visible status message showing whether guardrails are enabled or disabled and where the project override lives.
 
 ## Docs
 

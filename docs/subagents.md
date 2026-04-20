@@ -30,6 +30,11 @@ Reference for the ramean subagent extension.
   - dispatch one task directly to a subagent
   - shows temporary live status and streamlined progress above the editor while running
   - final rendered output shows the final response without transcript history
+- `/agent:expand`
+  - toggles dispatch-only expansion for subagent dispatch cards
+  - optional args: `toggle`, `expand`, `collapse`, and `status`
+  - leaves other tool output unchanged
+  - state is session-local and resets on reload
 - `/agent:status`
   - shows current subagent runtime, prompt state, and whether the extension is enabled
 
@@ -92,7 +97,7 @@ Notes:
 - malformed ramean config files trigger a warning and fall back to default project config behavior
 - if a configured subagent model is unavailable, the subagent falls back to the active main-agent model with `low` thinking
 - if `enabled: false`, the extension does not register `dispatch` or `/agent:spawn`
-- even when disabled, `/agent`, `/agent:insert`, `/agent:prompt`, and `/agent:status` stay available
+- even when disabled, `/agent`, `/agent:expand`, `/agent:insert`, `/agent:prompt`, and `/agent:status` stay available
 
 ## Prompt overrides
 
@@ -144,6 +149,9 @@ Hard rules:
 - running dispatch UI shows streamlined live progress from the latest subagent activity when available
 - dispatch task previews are truncated to one line in the message header
 - `dispatch` and `/agent:spawn` render final output without transcript history in the normal visible UI
+- `Ctrl+Shift+O` toggles dispatch-only expansion for subagent dispatch cards without changing other tool output
+- `/agent:expand` provides the same dispatch-only expansion control from the command line
+- dispatch-only expansion state is session-local and resets on reload
 - concurrent top-level dispatches aggregate into one shared above-editor widget
 - expanded results focus on task, output, and warnings/errors
 - usage tracking is not shown in the normal dispatch UI
@@ -155,7 +163,9 @@ Core implementation lives under:
 - `extensions/subagents/`
 - `extensions/tools/dispatch.ts`
 - `extensions/commands/agent.ts`
+- `extensions/commands/agent-expand.ts`
 - `extensions/commands/agent-insert.ts`
 - `extensions/commands/agent-prompt.ts`
 - `extensions/commands/agent-spawn.ts`
 - `extensions/commands/agent-status.ts`
+- `extensions/subagents/dispatch-expansion.ts`

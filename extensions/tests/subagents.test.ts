@@ -15,6 +15,7 @@ import {
   renderDispatchResult,
 } from "../UI/renderers.js";
 import { getStatusGlyph } from "../UI/status.js";
+import { registerAgentExpandCommand, registerAgentExpandShortcut } from "../commands/agent-expand.js";
 import {
   loadMergedSubagentConfig,
   updateProjectSubagentConfig,
@@ -22,6 +23,11 @@ import {
 } from "../subagents/config.js";
 import { upsertSubagentRules } from "../subagents/agents-md.js";
 import { formatDispatchProgress, getFinalOutput, validateDispatchTask } from "../subagents/spawn.js";
+import {
+  isDispatchExpansionEnabled,
+  parseDispatchExpansionAction,
+  setDispatchExpansionEnabled,
+} from "../subagents/dispatch-expansion.js";
 import { buildAgentStatusSummary, formatPromptState } from "../subagents/status.js";
 import type { DispatchDetails } from "../types/subagents.js";
 
@@ -392,6 +398,181 @@ test("running dispatch cards keep the normal tool background without a completio
   const [firstLine] = component.render(100);
   assert.match(firstLine ?? "", /^\{toolPendingBg\}/);
   assert.doesNotMatch(firstLine ?? "", /<success>▏<\/success>|<error>▏<\/error>/);
+});
+
+test("dispatch-only expansion can expand dispatch cards without changing global tool expansion", () => {
+  setDispatchExpansionEnabled(false);
+  const component = renderDispatchResult(
+    {
+      details: createDispatchDetails({
+        status: "success",
+        output: "Final answer",
+      }),
+    },
+    { expanded: false, isPartial: false },
+    plainTheme,
+  ) as { render(width: number): string[]; setExpanded?: (expanded: boolean) => void };
+
+  assert.doesNotMatch(component.render(100).join("\n"), /❯ TASK :/);
+
+  setDispatchExpansionEnabled(true);
+  assert.match(component.render(100).join("\n"), /❯ TASK :/);
+
+  component.setExpanded?.(false);
+  setDispatchExpansionEnabled(false);
+  assert.doesNotMatch(component.render(100).join("\n"), /❯ TASK :/);
+});
+
+test("dispatch expansion action parser supports toggle expand collapse and status", () => {
+  setDispatchExpansionEnabled(false);
+
+  assert.equal(parseDispatchExpansionAction(""), "toggle");
+  assert.equal(parseDispatchExpansionAction("expand"), "expand");
+  assert.equal(parseDispatchExpansionAction("collapse"), "collapse");
+  assert.equal(parseDispatchExpansionAction("status"), "status");
+  assert.equal(parseDispatchExpansionAction("off"), "collapse");
+  assert.equal(parseDispatchExpansionAction("wat"), null);
+  assert.equal(isDispatchExpansionEnabled(), false);
+});
+
+test("agent:expand command toggles dispatch-only expansion, refreshes UI, and notifies the user", async () => {
+  let registeredHandler: ((args: string, ctx: any) => Promise<void>) | undefined;
+  const notifications: Array<{ message: string; level?: string }> = [];
+  const statuses: Array<{ key: string; text: string | undefined }> = [];
+  const repaints: boolean[] = [];
+
+  registerAgentExpandCommand({
+    registerCommand(name: string, command: { handler: (args: string, ctx: any) => Promise<void> }) {
+      assert.equal(name, "agent:expand");
+      registeredHandler = command.handler;
+    },
+  } as unknown as Parameters<typeof registerAgentExpandCommand>[0]);
+
+  setDispatchExpansionEnabled(false);
+  await registeredHandler?.("", {
+    hasUI: true,
+    ui: {
+      notify(message: string, level?: string) {
+        notifications.push({ message, level });
+      },
+      setStatus(key: string, text: string | undefined) {
+        statuses.push({ key, text });
+      },
+      getToolsExpanded() {
+        return false;
+      },
+      setToolsExpanded(expanded: boolean) {
+        repaints.push(expanded);
+      },
+    },
+  });
+
+  assert.equal(isDispatchExpansionEnabled(), true);
+  assert.equal(notifications.length, 1);
+  assert.match(notifications[0]?.message ?? "", /Dispatch-only expansion is on/);
+  assert.equal(notifications[0]?.level, "info");
+  assert.deepEqual(statuses, [{ key: "ramean-dispatch-expand", text: "dispatch expanded" }]);
+  assert.deepEqual(repaints, [false]);
+});
+
+test("agent:expand status and collapse keep info-level feedback and clear status when disabled", async () => {
+  let registeredHandler: ((args: string, ctx: any) => Promise<void>) | undefined;
+  const notifications: Array<{ message: string; level?: string }> = [];
+  const statuses: Array<{ key: string; text: string | undefined }> = [];
+  const repaints: boolean[] = [];
+
+  registerAgentExpandCommand({
+    registerCommand(_name: string, command: { handler: (args: string, ctx: any) => Promise<void> }) {
+      registeredHandler = command.handler;
+    },
+  } as unknown as Parameters<typeof registerAgentExpandCommand>[0]);
+
+  setDispatchExpansionEnabled(true);
+  await registeredHandler?.("status", {
+    hasUI: true,
+    ui: {
+      notify(message: string, level?: string) {
+        notifications.push({ message, level });
+      },
+      setStatus(key: string, text: string | undefined) {
+        statuses.push({ key, text });
+      },
+      getToolsExpanded() {
+        return true;
+      },
+      setToolsExpanded(expanded: boolean) {
+        repaints.push(expanded);
+      },
+    },
+  });
+  await registeredHandler?.("collapse", {
+    hasUI: true,
+    ui: {
+      notify(message: string, level?: string) {
+        notifications.push({ message, level });
+      },
+      setStatus(key: string, text: string | undefined) {
+        statuses.push({ key, text });
+      },
+      getToolsExpanded() {
+        return true;
+      },
+      setToolsExpanded(expanded: boolean) {
+        repaints.push(expanded);
+      },
+    },
+  });
+
+  assert.equal(notifications[0]?.level, "info");
+  assert.match(notifications[0]?.message ?? "", /session-local and resets on reload/);
+  assert.equal(notifications[1]?.level, "info");
+  assert.match(notifications[1]?.message ?? "", /Dispatch-only expansion is off/);
+  assert.equal(isDispatchExpansionEnabled(), false);
+  assert.deepEqual(statuses, [
+    { key: "ramean-dispatch-expand", text: "dispatch expanded" },
+    { key: "ramean-dispatch-expand", text: undefined },
+  ]);
+  assert.deepEqual(repaints, [true, true]);
+});
+
+test("dispatch-only expansion shortcut registers Ctrl+Shift+O", async () => {
+  let shortcut: string | undefined;
+  let handler: ((ctx: any) => Promise<void>) | undefined;
+  const notifications: string[] = [];
+  const statuses: Array<{ key: string; text: string | undefined }> = [];
+  const repaints: boolean[] = [];
+
+  registerAgentExpandShortcut({
+    registerShortcut(key: string, options: { handler: (ctx: any) => Promise<void> }) {
+      shortcut = key;
+      handler = options.handler;
+    },
+  } as unknown as Parameters<typeof registerAgentExpandShortcut>[0]);
+
+  setDispatchExpansionEnabled(false);
+  await handler?.({
+    hasUI: true,
+    ui: {
+      notify(message: string) {
+        notifications.push(message);
+      },
+      setStatus(key: string, text: string | undefined) {
+        statuses.push({ key, text });
+      },
+      getToolsExpanded() {
+        return false;
+      },
+      setToolsExpanded(expanded: boolean) {
+        repaints.push(expanded);
+      },
+    },
+  });
+
+  assert.equal(shortcut, "ctrl+shift+o");
+  assert.equal(isDispatchExpansionEnabled(), true);
+  assert.match(notifications[0] ?? "", /Dispatch-only expansion is on/);
+  assert.deepEqual(statuses, [{ key: "ramean-dispatch-expand", text: "dispatch expanded" }]);
+  assert.deepEqual(repaints, [false]);
 });
 
 test("dispatch progress prefers live streamlined progress", () => {

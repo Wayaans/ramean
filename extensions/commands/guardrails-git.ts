@@ -1,5 +1,6 @@
 import type { AutocompleteItem } from "@mariozechner/pi-tui";
 import type { ExtensionAPI, ExtensionCommandContext } from "@mariozechner/pi-coding-agent";
+import { createGitGuardrailsStatusMessage } from "../UI/renderers.js";
 import { getProjectConfigPath } from "../core/paths.js";
 import {
   isGitGuardrailsEnabled,
@@ -51,7 +52,7 @@ function notify(ctx: ExtensionCommandContext, message: string, level: "info" | "
 
 export function registerGuardrailsGitCommand(pi: ExtensionAPI): void {
   pi.registerCommand("guardrails:git", {
-    description: "Toggle git-guardrails git command blocking",
+    description: "Show or change git-guardrails command blocking state",
     getArgumentCompletions,
     handler: async (args, ctx) => {
       const action = parseAction(args);
@@ -64,9 +65,12 @@ export function registerGuardrailsGitCommand(pi: ExtensionAPI): void {
       const configPath = getProjectConfigPath(ctx.cwd);
 
       if (action === "status") {
-        notify(
-          ctx,
-          `git-guardrails is ${currentEnabled ? "enabled" : "disabled"}. Project overrides live in ${configPath}`,
+        pi.sendMessage(
+          createGitGuardrailsStatusMessage({
+            enabled: currentEnabled,
+            configPath,
+            reloading: false,
+          }),
         );
         return;
       }
@@ -74,10 +78,12 @@ export function registerGuardrailsGitCommand(pi: ExtensionAPI): void {
       const nextEnabled = action === "toggle" ? !currentEnabled : action === "enable";
       const saved = updateProjectGitGuardrailsEnabled(ctx.cwd, nextEnabled);
 
-      notify(
-        ctx,
-        `git-guardrails ${nextEnabled ? "enabled" : "disabled"} in ${saved.path}. Reloading extension runtime...`,
-        nextEnabled ? "info" : "warning",
+      pi.sendMessage(
+        createGitGuardrailsStatusMessage({
+          enabled: nextEnabled,
+          configPath: saved.path,
+          reloading: true,
+        }),
       );
 
       await ctx.reload();

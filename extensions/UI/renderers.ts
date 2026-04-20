@@ -2,6 +2,7 @@ import { Box, Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import { getSubagent } from "../subagents/agents.js";
+import { isDispatchExpansionEnabled } from "../subagents/dispatch-expansion.js";
 import { buildAgentStatusSummary } from "../subagents/status.js";
 import { formatDispatchProgress, formatDispatchSummary } from "../subagents/spawn.js";
 import { buildToolsStatusSummary } from "../tools/status.js";
@@ -13,10 +14,13 @@ import type {
 } from "../types/subagents.js";
 import type { ToolStatusRow, ToolsStatusMessageDetails } from "../types/tools.js";
 import { renderStatusIcon } from "./status.js";
+import { buildGitGuardrailsStatusSummary } from "../others/git-guardrails-status.js";
+import type { GitGuardrailsStatusMessageDetails } from "../types/git-guardrails.js";
 
 export const DISPATCH_MESSAGE_TYPE = "ramean-dispatch";
 export const AGENT_STATUS_MESSAGE_TYPE = "ramean-agent-status";
 export const TOOLS_STATUS_MESSAGE_TYPE = "ramean-tools-status";
+export const GIT_GUARDRAILS_STATUS_MESSAGE_TYPE = "ramean-git-guardrails-status";
 
 type RenderableComponent = {
   render(width: number): string[];
@@ -124,6 +128,36 @@ function createExpandedDispatchComponent(details: DispatchDetails, theme: any) {
   return container;
 }
 
+class DispatchMessageCard {
+  private toolsExpanded: boolean;
+
+  constructor(
+    private readonly details: DispatchDetails,
+    private readonly theme: any,
+    expanded: boolean,
+  ) {
+    this.toolsExpanded = expanded;
+  }
+
+  setExpanded(expanded: boolean): void {
+    this.toolsExpanded = expanded;
+  }
+
+  render(width: number): string[] {
+    const expanded = this.toolsExpanded || isDispatchExpansionEnabled();
+    const card = wrapToolCard(
+      expanded
+        ? createExpandedDispatchComponent(this.details, this.theme)
+        : createTextStack(createCollapsedDispatchLines(this.details, this.theme)),
+      this.theme,
+      this.details.status,
+    );
+    return card.render(width);
+  }
+
+  invalidate(): void {}
+}
+
 function createStatusComponent(details: AgentStatusMessageDetails, theme: any) {
   const container = new Container();
   container.addChild(new Text(theme.fg("toolTitle", "/agent:status"), 0, 0));
@@ -188,6 +222,39 @@ function createToolsStatusComponent(details: ToolsStatusMessageDetails, theme: a
   return container;
 }
 
+function createGitGuardrailsStatusComponent(details: GitGuardrailsStatusMessageDetails, theme: any) {
+  const container = new Container();
+  container.addChild(new Text(theme.fg("toolTitle", "/guardrails:git"), 0, 0));
+  container.addChild(new Spacer(1));
+  container.addChild(new Text(theme.fg("accent", "❯ STATE :"), 0, 0));
+  container.addChild(new Text(details.enabled ? theme.fg("success", "enabled") : theme.fg("warning", "disabled"), 0, 0));
+  container.addChild(new Spacer(1));
+  container.addChild(new Text(theme.fg("accent", "❯ EFFECT :"), 0, 0));
+  container.addChild(
+    new Text(
+      details.enabled ? "dangerous git bash commands are blocked" : "git bash commands are allowed to run normally",
+      0,
+      0,
+    ),
+  );
+  container.addChild(new Spacer(1));
+  container.addChild(new Text(theme.fg("accent", "❯ PROJECT OVERRIDE :"), 0, 0));
+  container.addChild(new Text(details.configPath, 0, 0));
+  container.addChild(new Spacer(1));
+  container.addChild(new Text(theme.fg("accent", "❯ RUNTIME :"), 0, 0));
+  container.addChild(
+    new Text(
+      details.reloading ? "reloading now so the new state applies immediately" : "already using the current state",
+      0,
+      0,
+    ),
+  );
+  container.addChild(new Spacer(1));
+  container.addChild(new Text(theme.fg("accent", "❯ HINT :"), 0, 0));
+  container.addChild(new Text("use /guardrails:git enable|disable|status", 0, 0));
+  return container;
+}
+
 function appendToolRow(container: Container, tool: ToolStatusRow, theme: any): void {
   container.addChild(new Spacer(1));
   const source = theme.fg("dim", `(${tool.source})`);
@@ -246,11 +313,7 @@ export function renderDispatchResult(
     return wrapToolCard(createTextStack([theme.fg("muted", "No dispatch details.")]), theme, "running");
   }
 
-  if (!options.expanded) {
-    return wrapToolCard(createTextStack(createCollapsedDispatchLines(details, theme)), theme, details.status);
-  }
-
-  return wrapToolCard(createExpandedDispatchComponent(details, theme), theme, details.status);
+  return new DispatchMessageCard(details, theme, options.expanded);
 }
 
 export function registerMessageRenderers(pi: ExtensionAPI): void {
@@ -261,13 +324,7 @@ export function registerMessageRenderers(pi: ExtensionAPI): void {
       return wrapToolCard(createTextStack([fallback]), theme, "running");
     }
 
-    return wrapToolCard(
-      options.expanded
-        ? createExpandedDispatchComponent(details, theme)
-        : createTextStack(createCollapsedDispatchLines(details, theme)),
-      theme,
-      details.status,
-    );
+    return new DispatchMessageCard(details, theme, options.expanded);
   });
 
   pi.registerMessageRenderer(AGENT_STATUS_MESSAGE_TYPE, (message, _options, theme) => {
@@ -286,6 +343,15 @@ export function registerMessageRenderers(pi: ExtensionAPI): void {
       return wrapCustomMessageCard(createTextStack([fallback]), theme);
     }
     return wrapCustomMessageCard(createToolsStatusComponent(details, theme), theme);
+  });
+
+  pi.registerMessageRenderer(GIT_GUARDRAILS_STATUS_MESSAGE_TYPE, (message, _options, theme) => {
+    const details = message.details as GitGuardrailsStatusMessageDetails | undefined;
+    if (!details) {
+      const fallback = typeof message.content === "string" ? message.content : theme.fg("muted", "No git guardrails status available.");
+      return wrapCustomMessageCard(createTextStack([fallback]), theme);
+    }
+    return wrapCustomMessageCard(createGitGuardrailsStatusComponent(details, theme), theme);
   });
 }
 
@@ -311,6 +377,15 @@ export function createToolsStatusMessage(details: ToolsStatusMessageDetails) {
   return {
     customType: TOOLS_STATUS_MESSAGE_TYPE,
     content: buildToolsStatusSummary(details),
+    display: true,
+    details,
+  } as const;
+}
+
+export function createGitGuardrailsStatusMessage(details: GitGuardrailsStatusMessageDetails) {
+  return {
+    customType: GIT_GUARDRAILS_STATUS_MESSAGE_TYPE,
+    content: buildGitGuardrailsStatusSummary(details),
     display: true,
     details,
   } as const;

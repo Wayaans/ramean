@@ -79,6 +79,7 @@ Command:
 - `/guardrails:git`
   - toggles the extension on or off
   - optional args: `enable`, `disable`, and `status`
+  - shows a persistent status message with the current enabled/disabled state and project override path
   - reloads the extension runtime after enable or disable so the new state applies immediately
 
 Behavior:

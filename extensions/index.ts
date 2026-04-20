@@ -1,6 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { registerMessageRenderers } from "./UI/renderers.js";
 import { registerAgentCommand } from "./commands/agent.js";
+import { registerAgentExpandCommand, registerAgentExpandShortcut } from "./commands/agent-expand.js";
 import { registerAgentInsertCommand } from "./commands/agent-insert.js";
 import { registerAgentPromptCommand } from "./commands/agent-prompt.js";
 import { registerAgentSpawnCommand } from "./commands/agent-spawn.js";
@@ -35,6 +36,8 @@ export default function rameanExtensionPack(pi: ExtensionAPI, context?: Extensio
   registerToolsCompactionCommand(pi);
   registerToolsCompactionExtension(pi);
   registerAgentCommand(pi);
+  registerAgentExpandCommand(pi);
+  registerAgentExpandShortcut(pi);
   registerAgentInsertCommand(pi);
   registerAgentStatusCommand(pi);
   registerAgentPromptCommand(pi);
