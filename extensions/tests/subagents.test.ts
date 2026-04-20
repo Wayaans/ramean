@@ -6,16 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Message } from "@mariozechner/pi-ai";
 import { parse, stringify } from "yaml";
-import {
-  isReadOnlyBash,
-  looksLikeAdvisoryTask,
-  looksLikeAuthoringTask,
-  looksLikeDesignerTask,
-  looksLikeImplementationTask,
-  looksLikeReviewTask,
-  normalizeAgentName,
-  parseSpawnArgs,
-} from "../core/utils.js";
+import { isReadOnlyBash, normalizeAgentName, parseSpawnArgs } from "../core/utils.js";
 import {
   formatDispatchTaskPreview,
   formatDispatchWidget,
@@ -108,76 +99,12 @@ test("parseSpawnArgs supports positional and keyword syntax", () => {
   });
 });
 
-test("designer task heuristic is intentionally UI focused", () => {
-  assert.equal(looksLikeDesignerTask("revamp dashboard icon sizes"), true);
-  assert.equal(looksLikeDesignerTask("make the sidebar collapse on mobile"), true);
-  assert.equal(looksLikeDesignerTask("fix mobile API timeout"), false);
-  assert.equal(looksLikeDesignerTask("optimize postgres query plan"), false);
-});
-
-test("designer advisory and review heuristics separate implementation from feedback", () => {
-  assert.equal(looksLikeAuthoringTask("revamp dashboard icon sizes"), true);
-  assert.equal(looksLikeImplementationTask("revamp dashboard icon sizes"), true);
-  assert.equal(looksLikeReviewTask("review the current dashboard UI and give feedback"), true);
-  assert.equal(looksLikeAdvisoryTask("give feedback on how to write this login form UI"), true);
-  assert.equal(looksLikeAdvisoryTask("revamp dashboard icon sizes"), false);
-});
-
-test("designer dispatch validation rejects advisory-only and review-only UI tasks", () => {
-  assert.match(
-    validateDispatchTask("designer", "give feedback on how to write this login form UI") ?? "",
-    /advisory-only guidance/i,
-  );
-  assert.match(
-    validateDispatchTask("designer", "review the current dashboard UI and give feedback") ?? "",
-    /review-only tasks/i,
-  );
+test("dispatch validation only rejects empty tasks", () => {
   assert.equal(validateDispatchTask("designer", "revamp dashboard icon sizes"), null);
-  assert.equal(validateDispatchTask("designer", "make the sidebar collapse on mobile"), null);
-  assert.equal(validateDispatchTask("designer", "design the review page"), null);
-});
-
-test("agent dispatch validation rejects review-only tasks", () => {
-  assert.match(
-    validateDispatchTask("agent", "review this change and give feedback") ?? "",
-    /use reviewer instead/i,
-  );
-  assert.match(
-    validateDispatchTask("agent", "analyze this pull request and summarize the issues") ?? "",
-    /use reviewer instead/i,
-  );
-  assert.equal(validateDispatchTask("agent", "fix backend race condition in queue worker"), null);
-});
-
-test("reviewer dispatch validation rejects implementation-intent tasks", () => {
-  assert.match(
-    validateDispatchTask("reviewer", "implement the new dashboard shell") ?? "",
-    /reviewer is read-only/i,
-  );
-  assert.match(
-    validateDispatchTask("reviewer", "implement the new dashboard shell and review it") ?? "",
-    /reviewer is read-only/i,
-  );
-  assert.match(
-    validateDispatchTask("reviewer", "review and create tests for the new dashboard shell") ?? "",
-    /reviewer is read-only/i,
-  );
-  assert.match(
-    validateDispatchTask("reviewer", "review and implement the dashboard shell") ?? "",
-    /reviewer is read-only/i,
-  );
-  assert.match(
-    validateDispatchTask("reviewer", "design a new settings panel") ?? "",
-    /reviewer is read-only/i,
-  );
-  assert.match(
-    validateDispatchTask("reviewer", "improve the dashboard layout") ?? "",
-    /reviewer is read-only/i,
-  );
-  assert.equal(validateDispatchTask("reviewer", "review the new dashboard shell and summarize issues"), null);
-  assert.equal(validateDispatchTask("reviewer", "review the write path"), null);
-  assert.equal(validateDispatchTask("reviewer", "review the add button styling"), null);
-  assert.equal(validateDispatchTask("reviewer", "debug why the queue worker crashes"), null);
+  assert.equal(validateDispatchTask("agent", "review this change and give feedback"), null);
+  assert.equal(validateDispatchTask("reviewer", "implement the new dashboard shell"), null);
+  assert.equal(validateDispatchTask("reviewer", "Final review of the git-guardrails changes"), null);
+  assert.match(validateDispatchTask("reviewer", "   ") ?? "", /cannot be empty/i);
 });
 
 test("reviewer bash guard allows only simple read-only commands", () => {

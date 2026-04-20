@@ -5,9 +5,11 @@ import { registerAgentInsertCommand } from "./commands/agent-insert.js";
 import { registerAgentPromptCommand } from "./commands/agent-prompt.js";
 import { registerAgentSpawnCommand } from "./commands/agent-spawn.js";
 import { registerAgentStatusCommand } from "./commands/agent-status.js";
+import { registerGuardrailsGitCommand } from "./commands/guardrails-git.js";
 import { registerToolsCompactionCommand } from "./commands/tools-compaction.js";
 import { registerToolsStatusCommand } from "./commands/tools-status.js";
 import { loadMergedOptionalExtensionsState } from "./others/config.js";
+import { registerGitGuardrailsExtension } from "./others/git-guardrails.js";
 import { registerHandoffCommand } from "./others/handoff.js";
 import { registerMinimalModeExtension } from "./others/minimal-mode.js";
 import { registerNotifyExtension } from "./others/notify.js";
@@ -18,14 +20,17 @@ import { registerDispatchTool } from "./tools/dispatch.js";
 import { registerCustomToolsExtension } from "./tools/index.js";
 
 export default function rameanExtensionPack(pi: ExtensionAPI, context?: ExtensionContext): void {
+  const cwd = context?.cwd ?? process.cwd();
   const runningAsSubagent = registerSubagentRuntime(pi);
   registerCustomToolsExtension(pi);
+  registerGitGuardrailsExtension(pi, cwd);
 
   if (runningAsSubagent) {
     return;
   }
 
   registerMessageRenderers(pi);
+  registerGuardrailsGitCommand(pi);
   registerToolsStatusCommand(pi);
   registerToolsCompactionCommand(pi);
   registerToolsCompactionExtension(pi);
@@ -34,7 +39,6 @@ export default function rameanExtensionPack(pi: ExtensionAPI, context?: Extensio
   registerAgentStatusCommand(pi);
   registerAgentPromptCommand(pi);
 
-  const cwd = context?.cwd ?? process.cwd();
   const optionalExtensions = loadMergedOptionalExtensionsState(cwd);
   if (optionalExtensions.minimalMode) {
     registerMinimalModeExtension(pi);

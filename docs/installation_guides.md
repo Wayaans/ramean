@@ -74,6 +74,9 @@ Default and project config support docs-style extension entries:
 
 - extension: minimal-mode
   enabled: true
+
+- extension: git-guardrails
+  enabled: false
 ```
 
 Notes:
@@ -84,10 +87,11 @@ Notes:
 - the `handoff` extension entry with `enabled: false` disables `/handoff`.
 - the `notify` extension entry with `enabled: false` disables terminal-ready notifications.
 - the `minimal-mode` extension entry with `enabled: false` restores normal tool display behavior.
+- the `git-guardrails` extension entry is disabled by default; when enabled, it blocks common dangerous git bash commands such as `git push` and `git reset --hard` using a pattern-based guard list.
 - If a configured subagent model is unavailable, the subagent inherits the active main-agent model with `low` thinking.
 - Legacy compact config shapes are still accepted for backward compatibility.
-- Project config writes are normalized to docs-style extension entries.
-- If `.pi/ramean/config.yaml` is malformed, ramean warns and falls back to defaults for that extension.
+- Ramean config writers prefer docs-style extension entries for the settings they update.
+- If `.pi/ramean/config.yaml` is malformed, ramean warns and falls back to default project config behavior.
 - Legacy `parallel.max` fields are ignored silently.
 
 ## Commands
@@ -115,6 +119,10 @@ Notes:
   - triggers custom session compaction using `github-copilot/gemini-3-flash-preview`
 - `/handoff <goal>`
   - generates a focused prompt for a new session from the current conversation
+- `/guardrails:git`
+  - toggles git-guardrails on or off
+  - optional args: `enable`, `disable`, and `status`
+  - reloads the extension runtime after state changes so the guard applies immediately
 
 ## Tools
 
@@ -125,6 +133,7 @@ Subagent tool:
   - use `agent` for general coding and exploration
   - use `designer` only for UI/UX and front-end implementation work
   - use `reviewer` only for read-only review, feedback, and analysis
+  - dispatch does not pre-classify task text with keyword heuristics; each subagent prompt self-checks scope and can refuse out-of-scope work
   - after non-trivial implementation, prefer a final `reviewer` pass unless the change is very small
 
 Custom top-level tools:
@@ -155,6 +164,9 @@ Notes:
   - sends a terminal notification when the main agent is ready for input
 - `minimal-mode`
   - enables compact tool rendering for most tools without changing `write` or `edit`
+- `git-guardrails`
+  - disabled by default
+  - blocks common dangerous git bash commands such as `git push`, `git reset --hard`, `git clean -f`, and `git branch -D`
 
 ## UI notes
 

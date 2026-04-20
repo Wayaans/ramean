@@ -72,6 +72,39 @@ Config entry:
 
 If disabled, ramean keeps the normal tool display behavior.
 
+## Git guardrails
+
+Command:
+
+- `/guardrails:git`
+  - toggles the extension on or off
+  - optional args: `enable`, `disable`, and `status`
+  - reloads the extension runtime after enable or disable so the new state applies immediately
+
+Behavior:
+
+- disabled by default
+- blocks common dangerous git bash commands before they execute using a pattern-based guard list
+- applies in both the main agent runtime and ramean subagent runtimes
+- blocked examples include:
+  - `git push`
+  - `git reset --hard`
+  - `git clean -f`, `git clean -fd`, and similar forced cleans such as `git clean -fdx`
+  - `git branch -D`
+  - `git checkout .`
+  - `git restore .`
+  - `push --force`
+  - `reset --hard`
+
+Config entry:
+
+```yaml
+- extension: git-guardrails
+  enabled: false
+```
+
+If disabled, ramean leaves git bash commands untouched, but `/guardrails:git` stays available so you can enable it later.
+
 ## Config warnings
 
-If `.pi/ramean/config.yaml` is malformed, ramean warns and falls back to defaults for the affected extension instead of failing silently.
+If `.pi/ramean/config.yaml` is malformed, ramean warns and falls back to default project config behavior instead of failing silently.

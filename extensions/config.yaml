@@ -34,3 +34,6 @@
 
 - extension: minimal-mode
   enabled: true
+
+- extension: git-guardrails
+  enabled: false

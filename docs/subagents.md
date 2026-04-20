@@ -88,8 +88,8 @@ Notes:
 
 - legacy compact config shapes are still supported
 - stale legacy `parallel.max` values are ignored silently
-- project config writes are normalized to docs-style extension entries
-- malformed ramean config files trigger a warning and fall back to defaults for that extension
+- ramean config writers prefer docs-style extension entries for the settings they update
+- malformed ramean config files trigger a warning and fall back to default project config behavior
 - if a configured subagent model is unavailable, the subagent falls back to the active main-agent model with `low` thinking
 - if `enabled: false`, the extension does not register `dispatch` or `/agent:spawn`
 - even when disabled, `/agent`, `/agent:insert`, `/agent:prompt`, and `/agent:status` stay available
@@ -127,12 +127,15 @@ Hard rules:
   - no `edit`
   - no `write`
   - no mutating `bash`
-- reviewer is for review, feedback, and analysis only
+- dispatch does not do keyword or phrase based task classification before launch
+- subagent scope boundaries are enforced primarily by the subagent prompts themselves
+- if a delegated task is out of scope, the subagent should refuse briefly, point to the correct subagent, and stop
+- reviewer is for read-only review, feedback, and analysis
   - prefer reviewer as the final pass after non-trivial implementation
-- designer only accepts UI/UX and front-end implementation work
-  - no critique-only, feedback-only, advisory-only, or planning-only tasks
-- agent rejects UI/UX and front-end work
-  - review-only tasks should go to reviewer instead
+- designer is for UI/UX and front-end implementation work
+  - critique-only, feedback-only, advisory-only, and planning-only tasks should be refused by the designer prompt
+- agent is for general coding, exploration, and non-UI implementation work
+  - UI/UX and review-only tasks should be refused by the agent prompt
 
 ## UI
 

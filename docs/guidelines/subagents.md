@@ -133,6 +133,9 @@ Rules:
   - no `edit`
   - no mutating `bash`
   - custom tools are allowed only if they are read-only
+- Do not rely on keyword or phrase classifiers to pre-route delegated tasks inside the extension runtime
+- Let the main agent choose the subagent, then let the subagent prompt self-check scope before doing work
+- If a delegated task is out of scope, the subagent should refuse briefly, name the correct subagent, and stop
 - Designer is for implementation, not critique-only or advisory-only work
 - Agent is for general coding and exploration, not UI implementation or review-only work
 
