@@ -21,14 +21,15 @@ import {
   updateProjectSubagentConfig,
   updateProjectSubagentEnabled,
 } from "../subagents/config.js";
-import { upsertSubagentRules } from "../subagents/agents-md.js";
-import { formatDispatchProgress, getFinalOutput, validateDispatchTask } from "../subagents/spawn.js";
+import { buildSubagentRulesBlock, upsertSubagentRules } from "../subagents/agents-md.js";
+import { buildDelegatedTask, formatDispatchProgress, getFinalOutput, validateDispatchTask } from "../subagents/spawn.js";
 import {
   isDispatchExpansionEnabled,
   parseDispatchExpansionAction,
   setDispatchExpansionEnabled,
 } from "../subagents/dispatch-expansion.js";
 import { buildAgentStatusSummary, formatPromptState } from "../subagents/status.js";
+import { registerDispatchTool } from "../tools/dispatch.js";
 import type { DispatchDetails } from "../types/subagents.js";
 
 function ensureDefaultConfigFixture(): void {
@@ -111,6 +112,40 @@ test("dispatch validation only rejects empty tasks", () => {
   assert.equal(validateDispatchTask("reviewer", "implement the new dashboard shell"), null);
   assert.equal(validateDispatchTask("reviewer", "Final review of the git-guardrails changes"), null);
   assert.match(validateDispatchTask("reviewer", "   ") ?? "", /cannot be empty/i);
+});
+
+test("managed subagent rules emphasize implementation-first routing", () => {
+  const rules = buildSubagentRulesBlock();
+
+  assert.match(rules, /Route by task shape first: implementation work goes to `agent` or `designer`/);
+  assert.match(rules, /dispatch `agent` or `designer` first, then dispatch `reviewer` as a separate pass/);
+});
+
+test("dispatch tool guidance emphasizes implementation-first routing", () => {
+  let registeredTool: { promptSnippet?: string; promptGuidelines?: string[] } | undefined;
+
+  registerDispatchTool({
+    registerTool(tool: { promptSnippet?: string; promptGuidelines?: string[] }) {
+      registeredTool = tool;
+    },
+  } as unknown as Parameters<typeof registerDispatchTool>[0]);
+
+  const guidance = registeredTool?.promptGuidelines?.join("\n") ?? "";
+  assert.match(registeredTool?.promptSnippet ?? "", /implementation or review task/i);
+  assert.match(guidance, /Route by task shape: implementation work goes to agent or designer/);
+  assert.match(guidance, /dispatch agent or designer first, then dispatch reviewer as a separate pass/);
+});
+
+test("delegated task wrapper reinforces role-specific execution mode", () => {
+  assert.match(buildDelegatedTask("agent", "fix the config merge logic"), /Default to implementation mode for non-UI coding tasks\./);
+  assert.match(buildDelegatedTask("designer", "improve the mobile navigation"), /Default to implementation mode for UI\/UX and front-end tasks\./);
+  assert.match(buildDelegatedTask("reviewer", "review the recent config changes"), /Stay in review, validation, and analysis mode\./);
+  assert.match(buildDelegatedTask("designer", "improve the mobile navigation"), /Task:\nimprove the mobile navigation/);
+});
+
+test("delegated task wrapper preserves the raw task body", () => {
+  const task = "\n  keep this indentation\n";
+  assert.match(buildDelegatedTask("agent", task), /Task:\n\n  keep this indentation\n/);
 });
 
 test("reviewer bash guard allows only simple read-only commands", () => {

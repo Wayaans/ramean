@@ -8,7 +8,7 @@ export const SUBAGENTS: Record<CanonicalAgentName, AgentDefinition> = {
     shortName: "AG",
     icon: "➽",
     aliases: ["agent", "ag"],
-    description: "General-purpose subagent for implementation and analysis, excluding UI/UX and front-end work.",
+    description: "Non-UI implementation specialist for debugging, refactors, tests, tooling, and codebase analysis.",
   },
   designer: {
     name: "designer",
@@ -16,7 +16,7 @@ export const SUBAGENTS: Record<CanonicalAgentName, AgentDefinition> = {
     shortName: "DS",
     icon: "➽",
     aliases: ["designer", "ds"],
-    description: "UI/UX and front-end subagent.",
+    description: "UI/UX and front-end implementation specialist for accessibility, responsiveness, and polish.",
   },
   reviewer: {
     name: "reviewer",
@@ -24,7 +24,7 @@ export const SUBAGENTS: Record<CanonicalAgentName, AgentDefinition> = {
     shortName: "RV",
     icon: "➽",
     aliases: ["reviewer", "rv"],
-    description: "Read-only review subagent.",
+    description: "Read-only reviewer for critique, validation, and final-pass analysis.",
   },
 };
 

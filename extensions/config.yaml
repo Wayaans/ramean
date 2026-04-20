@@ -23,7 +23,7 @@
     todo_write: true
     question: true
     questionnaire: true
-    web_fetch: true
+    web_fetch: false
     find_docs: true
 
 - extension: handoff

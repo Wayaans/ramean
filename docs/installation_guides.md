@@ -137,11 +137,12 @@ Subagent tool:
 
 - `dispatch` — dispatch one subagent directly
   - for parallel work, the main agent should issue multiple top-level `dispatch` calls
-  - use `agent` for general coding and exploration
-  - use `designer` only for UI/UX and front-end implementation work
-  - use `reviewer` only for read-only review, feedback, and analysis
+  - route by task shape: implementation work goes to `agent` or `designer`; review, audit, critique, and final-pass validation go to `reviewer`
+  - use `agent` for implementation-shaped non-UI work such as debugging, refactors, tests, tooling, and codebase analysis
+  - use `designer` for implementation-shaped UI/UX and front-end work such as layout, components, styling, accessibility, responsive behavior, and polish
+  - use `reviewer` only for read-only review, critique, validation, and analysis, including UI/UX or front-end reviews when the task is primarily evaluative
+  - if a task needs both implementation and review, dispatch `agent` or `designer` first, then dispatch `reviewer` as a separate pass
   - dispatch does not pre-classify task text with keyword heuristics; each subagent prompt self-checks scope and can refuse out-of-scope work
-  - after non-trivial implementation, prefer a final `reviewer` pass unless the change is very small
 
 Custom top-level tools:
 

@@ -16,7 +16,7 @@ Write commit messages terse and exact. Conventional Commits format. No fluff. Wh
 - `<type>(<scope>): <imperative summary>` — `<scope>` optional
 - Types: `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `chore`, `build`, `ci`, `style`, `revert`
 - Imperative mood: "add", "fix", "remove" — not "added", "adds", "adding"
-- ≤50 chars when possible, hard cap 72
+- ≤75 chars when possible, hard cap 100
 - No trailing period
 - Match project convention for capitalization after the colon
 
@@ -24,7 +24,7 @@ Write commit messages terse and exact. Conventional Commits format. No fluff. Wh
 
 - Skip entirely when subject is self-explanatory
 - Add body only for: non-obvious _why_, breaking changes, migration notes, linked issues
-- Wrap at 72 chars
+- Wrap at 100 chars
 - Bullets `-` not `*`
 - Reference issues/PRs at end: `Closes #42`, `Refs #17`
 
@@ -41,9 +41,10 @@ Write commit messages terse and exact. Conventional Commits format. No fluff. Wh
 Diff: new endpoint for user profile with body explaining the why
 
 - ❌ "feat: add a new endpoint to get user profile information from the database"
+
 - ✅
 
-```
+```text
 feat(api): add GET /users/:id/profile
 
 Mobile client needs profile data without the full user payload
@@ -56,7 +57,7 @@ Diff: breaking API change
 
 - ✅
 
-```
+```text
 feat(api)!: rename /v1/orders to /v1/checkout
 
 BREAKING CHANGE: clients on /v1/orders must migrate to /v1/checkout
@@ -69,4 +70,4 @@ Always include body for: breaking changes, security fixes, data migrations, anyt
 
 ## Boundaries
 
-Only generates the commit message. Does not run `git commit`, does not stage files, does not amend. Output the message as a code block ready to paste. "stop ramean-commit" or "normal mode": revert to verbose commit style.
+Only generates the commit message. Does not run `git commit`, does not stage files, does not amend. Output the message as a plain text ready to paste. "stop ramean-commit" or "normal mode": revert to verbose commit style.

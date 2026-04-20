@@ -7,15 +7,15 @@ Subagents should always be available to the main agent with clear instructions, 
 ## Agents
 
 - Agent : `AG`
-  - general-purpose implementation and analysis subagent
+  - prompted subagent for implementation-shaped non-UI work such as debugging, refactors, tests, tooling, and codebase analysis
   - not for UI/UX or front-end work
   - not for review-only work when reviewer is the better fit
 - Designer : `DS`
-  - prompted subagent for UI/UX and front-end implementation work only
+  - prompted subagent for implementation-shaped UI/UX and front-end work such as layout, components, styling, accessibility, responsive behavior, and polish
   - not for critique, feedback, review, or planning-only guidance
 - Reviewer : `RV`
-  - prompted subagent for read-only review, feedback, and analysis
-  - preferred final pass after non-trivial implementation
+  - prompted subagent for read-only review, critique, validation, and analysis
+  - used after implementation when a final validation pass is warranted
   - read-only
 
 ## Commands
@@ -55,6 +55,7 @@ Subagents should always be available to the main agent with clear instructions, 
 ## System Prompt
 
 - Each subagent has a default system prompt in `extensions/subagents/prompts/`
+- Dispatch also adds a small role-specific per-run reminder so `agent` and `designer` default to implementation mode while `reviewer` stays in review mode
 - A project-level prompt can append to or replace the default prompt from `.pi/ramean/agents/<agent>.md`
 - Supported files:
   - `.pi/ramean/agents/reviewer.md`
@@ -139,10 +140,17 @@ Rules:
   - no mutating `bash`
   - custom tools are allowed only if they are read-only
 - Do not rely on keyword or phrase classifiers to pre-route delegated tasks inside the extension runtime
-- Let the main agent choose the subagent, then let the subagent prompt self-check scope before doing work
+- Let the main agent choose the subagent, then let the subagent prompt plus the per-run reminder self-check scope before doing work
 - If a delegated task is out of scope, the subagent should refuse briefly, name the correct subagent, and stop
+- Route by task shape first
+  - implementation-shaped non-UI work belongs to Agent
+  - implementation-shaped UI/UX and front-end work belongs to Designer
+  - review-shaped, audit-shaped, critique-shaped, and final-pass validation work belong to Reviewer
+- If a task needs both implementation and review, dispatch Agent or Designer first, then dispatch Reviewer as a separate pass
 - Designer is for implementation, not critique-only or advisory-only work
-- Agent is for general coding and exploration, not UI implementation or review-only work
+  - if the user wants UI changed, fixed, built, or polished, prefer Designer over Reviewer
+- Agent is for non-UI implementation, not UI implementation or review-only work
+  - if the user wants non-UI code changed, prefer Agent over Reviewer
 
 ## UI
 

@@ -5,9 +5,10 @@ Ramean is my personal collection of extensions for [pi-coding-agent](https://git
 Right now this package ships:
 
 - subagents: agent, designer, and reviewer
-  - `agent` for general coding and exploration
-  - `designer` for UI/UX and front-end implementation only
-  - `reviewer` for read-only review, feedback, and analysis
+  - `agent` for implementation-shaped non-UI work such as debugging, refactors, tests, tooling, and codebase analysis
+  - `designer` for implementation-shaped UI/UX and front-end work such as layout, components, styling, accessibility, responsive behavior, and polish
+  - `reviewer` for read-only review, critique, validation, and final-pass analysis, including UI/UX or front-end review when the task is primarily evaluative
+  - route by task shape: implementation work goes to `agent` or `designer`; review work goes to `reviewer`; mixed work should implement first and review second
   - routing relies on main-agent instructions plus subagent self-check prompts rather than keyword-based preflight rejection
 - custom top-level tools: grep, glob, list, todo_write, question, questionnaire, web_fetch, and find_docs
 - tools support commands: `/tools:status` and `/tools:compaction`
@@ -27,6 +28,15 @@ Right now this package ships:
 - [x] git guardrails
 
 Useful commands include `/agent`, `/agent:expand`, `/agent:insert`, `/agent:prompt`, `/agent:spawn`, `/agent:status`, `/ramean:commit`, `/tools:status`, `/tools:compaction`, `/handoff`, and `/guardrails:git`.
+
+Routing at a glance:
+
+- implementation-shaped non-UI task → `agent`
+- implementation-shaped UI/UX or front-end task → `designer`
+- review, audit, critique, or final-pass validation → `reviewer`
+- task needs both implementation and review → dispatch `agent` or `designer` first, then dispatch `reviewer`
+
+Dispatch also adds a lightweight role-specific reminder at run time so `agent` and `designer` default to implementation mode while `reviewer` stays evaluative.
 
 `/agent:insert` adds or refreshes a managed hard-rule reminder in an existing project `AGENTS.md` so the main agent keeps the subagent routing rules in view.
 

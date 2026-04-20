@@ -4,9 +4,9 @@ Reference for the ramean subagent extension.
 
 ## Built-in subagents
 
-- `agent` (`AG`) — general-purpose implementation and analysis worker for non-UI work
-- `designer` (`DS`) — UI/UX and front-end implementation specialist
-- `reviewer` (`RV`) — read-only review, feedback, and analysis specialist
+- `agent` (`AG`) — non-UI implementation specialist for debugging, refactors, tests, tooling, and codebase analysis
+- `designer` (`DS`) — UI/UX and front-end implementation specialist for accessibility, responsiveness, and polish
+- `reviewer` (`RV`) — read-only reviewer for critique, validation, and final-pass analysis
 
 ## Commands
 
@@ -42,6 +42,8 @@ Reference for the ramean subagent extension.
 
 - `dispatch`
   - run one subagent on one task
+  - route by task shape: implementation work goes to `agent` or `designer`; review, audit, critique, and final-pass validation go to `reviewer`
+  - if a task needs both implementation and review, dispatch `agent` or `designer` first, then dispatch `reviewer` as a separate pass
   - when the main agent needs multiple subagents, it should issue multiple top-level `dispatch` calls in parallel
 
 ## Orchestration behavior
@@ -101,6 +103,8 @@ Notes:
 
 ## Prompt overrides
 
+Each dispatch also adds a small role-specific per-run reminder so `agent` and `designer` default to implementation mode while `reviewer` stays in review mode.
+
 Project prompt overrides live in:
 
 - `.pi/ramean/agents/agent.md`
@@ -133,14 +137,21 @@ Hard rules:
   - no `write`
   - no mutating `bash`
 - dispatch does not do keyword or phrase based task classification before launch
-- subagent scope boundaries are enforced primarily by the subagent prompts themselves
+- subagent scope boundaries are enforced primarily by the subagent prompts themselves, plus a small role-specific per-run reminder that reinforces implementation-first routing
 - if a delegated task is out of scope, the subagent should refuse briefly, point to the correct subagent, and stop
-- reviewer is for read-only review, feedback, and analysis
-  - prefer reviewer as the final pass after non-trivial implementation
+- route by task shape first
+  - implementation-shaped non-UI work belongs to `agent`
+  - implementation-shaped UI/UX and front-end work belongs to `designer`
+  - review-shaped, audit-shaped, critique-shaped, and final-pass validation work belong to `reviewer`
+- if a task needs both implementation and review, dispatch `agent` or `designer` first, then dispatch `reviewer` as a separate pass
+- reviewer is for read-only review, critique, validation, and analysis
+  - use reviewer after implementation when a final validation pass is warranted
 - designer is for UI/UX and front-end implementation work
   - critique-only, feedback-only, advisory-only, and planning-only tasks should be refused by the designer prompt
-- agent is for general coding, exploration, and non-UI implementation work
+  - when the user wants the UI changed, fixed, built, or polished, prefer `designer` over `reviewer`
+- agent is for non-UI implementation work such as debugging, refactors, tests, tooling, and focused codebase analysis
   - UI/UX and review-only tasks should be refused by the agent prompt
+  - when the user wants non-UI code changed, prefer `agent` over `reviewer`
 
 ## UI
 

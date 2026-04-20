@@ -186,6 +186,60 @@ function createBaseDetails(agent: CanonicalAgentName, task: string): DispatchDet
   };
 }
 
+function buildDelegatedTaskRules(agent: CanonicalAgentName): string[] {
+  const shared = [
+    "Routing rule:",
+    "- Implementation-shaped non-UI work belongs to Agent.",
+    "- Implementation-shaped UI/UX and front-end work belongs to Designer.",
+    "- Review-shaped, audit-shaped, critique-shaped, or final-pass validation work belongs to Reviewer.",
+    "- If the overall workflow needs both implementation and review, do only your assigned role and stop.",
+    "",
+  ];
+
+  if (agent === "agent") {
+    return [
+      ...shared,
+      "Agent execution rule:",
+      "- Default to implementation mode for non-UI coding tasks.",
+      "- Handle debugging, refactors, tests, tooling, data flow, business logic, and codebase analysis.",
+      "- If the task is to change non-UI code, provide concrete implementation output rather than only suggestions when the available context is sufficient.",
+      "- Do not drift into UI implementation or review-only mode.",
+    ];
+  }
+
+  if (agent === "designer") {
+    return [
+      ...shared,
+      "Designer execution rule:",
+      "- Default to implementation mode for UI/UX and front-end tasks.",
+      "- Own layout, components, styling, accessibility, responsive behavior, visual feedback states, and polish.",
+      "- If the real goal is to change UI or front-end behavior, provide concrete implementation output rather than only suggestions when the available context is sufficient.",
+      "- Do not stay in consultant mode when implementation is reasonably possible.",
+    ];
+  }
+
+  return [
+    ...shared,
+    "Reviewer execution rule:",
+    "- Stay in review, validation, and analysis mode.",
+    "- Focus on correctness, maintainability, security, performance, type safety, accessibility, and obvious regressions.",
+    "- Do not implement changes or scout for implementation work.",
+  ];
+}
+
+export function buildDelegatedTask(agent: CanonicalAgentName, task: string): string {
+  return [
+    `You are running as the ${getSubagent(agent)?.title ?? agent} subagent inside ramean.`,
+    "",
+    ...buildDelegatedTaskRules(agent),
+    "",
+    "Task:",
+    task,
+    "",
+    "Return a concise, actionable result for the main agent and follow the output format from your system instructions.",
+  ].join("\n");
+}
+
 export function validateDispatchTask(_agent: CanonicalAgentName, task: string): string | null {
   return task.trim() ? null : "Dispatch task cannot be empty.";
 }
@@ -268,7 +322,7 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
       args.push("--append-system-prompt", tempPromptPath);
     }
 
-    args.push(options.task);
+    args.push(buildDelegatedTask(agent, options.task));
 
     const exitCode = await new Promise<number>((resolve) => {
       const invocation = getPiInvocation(args);

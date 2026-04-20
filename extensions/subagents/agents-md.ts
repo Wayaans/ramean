@@ -10,9 +10,11 @@ export function buildSubagentRulesBlock(): string {
     "## Ramean subagent hard rules",
     "",
     "- There are 3 subagents available through the `dispatch` tool: `agent`, `designer`, and `reviewer`. You can run them one at a time or in parallel with multiple top-level `dispatch` calls.",
-    "- Use `agent` for general code work such as implementation, exploration, debugging, refactors, and other non-UI tasks. Do not send UI/UX or front-end work to `agent`; use `designer` instead. Do not use `agent` when the task is primarily code review.",
-    "- Use `designer` only to implement or modify UI/UX and front-end work. Do not use `designer` for critique, feedback, review, advisory-only guidance, planning-only requests, or non-UI logic. Use `reviewer` for feedback and `agent` for non-UI logic or general coding.",
-    "- Use `reviewer` only for read-only review, feedback, and analysis. Do not use `reviewer` to write code, explore aimlessly, or scout for implementation work. After any non-trivial implementation, run `reviewer` as the final pass unless the change is very small.",
+    "- Route by task shape first: implementation work goes to `agent` or `designer`; review, audit, critique, and final-pass validation go to `reviewer`.",
+    "- Use `agent` for implementation-shaped non-UI work such as debugging, refactors, tests, tooling, and codebase analysis. If the task is to change non-UI code, prefer `agent` over `reviewer`. Do not send UI/UX or front-end work to `agent`; use `designer` instead.",
+    "- Use `designer` for implementation-shaped UI/UX and front-end work such as layout, components, styling, accessibility, responsive behavior, and polish. If the user wants the UI changed, built, fixed, or polished, prefer `designer` over `reviewer`. Do not use `designer` for critique-only, review-only, advisory-only, or planning-only work.",
+    "- Use `reviewer` only for read-only review, critique, validation, and final-pass analysis. This includes UI/UX and front-end review when the task is primarily evaluative. Do not use `reviewer` to write code, scout for implementation, or act as the default subagent for mixed tasks.",
+    "- If a task needs both implementation and review, dispatch `agent` or `designer` first, then dispatch `reviewer` as a separate pass.",
     RAMEAN_SUBAGENT_RULES_END,
   ].join("\n");
 }
