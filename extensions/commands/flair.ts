@@ -5,7 +5,6 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { parse } from "yaml";
 
 const DEFAULT_SKILLS_DIR = fileURLToPath(new URL("../../skills", import.meta.url));
-export const FLAIR_MESSAGE_TYPE = "flair-skill";
 
 export interface FlairSkill {
   name: string;
@@ -96,9 +95,20 @@ export function discoverFlairSkills(skillsDir = DEFAULT_SKILLS_DIR): FlairSkill[
   return discoveredSkills.sort((left, right) => left.name.localeCompare(right.name));
 }
 
-export function buildFlairSkillContent(skillBody: string, args: string): string {
+export function buildFlairSkillBlock(skill: Pick<FlairSkill, "name" | "body" | "skillFilePath">): string {
+  return [
+    `<skill name="${skill.name}" location="${skill.skillFilePath}">`,
+    `References are relative to ${path.dirname(skill.skillFilePath)}.`,
+    "",
+    skill.body,
+    "</skill>",
+  ].join("\n");
+}
+
+export function buildFlairSkillContent(skill: Pick<FlairSkill, "name" | "body" | "skillFilePath">, args: string): string {
   const trimmedArgs = args.trim();
-  return trimmedArgs ? `${skillBody}\n\nUser: ${trimmedArgs}` : skillBody;
+  const skillBlock = buildFlairSkillBlock(skill);
+  return trimmedArgs ? `${skillBlock}\n\n${trimmedArgs}` : skillBlock;
 }
 
 export function registerFlairCommands(
@@ -111,14 +121,14 @@ export function registerFlairCommands(
     pi.registerCommand(`flair:${skill.name}`, {
       description: skill.description,
       handler: async (args, ctx) => {
-        const content = buildFlairSkillContent(skill.body, args);
+        const content = buildFlairSkillContent(skill, args);
 
         if (ctx.isIdle()) {
-          pi.sendMessage({ customType: FLAIR_MESSAGE_TYPE, content, display: false }, { triggerTurn: true });
+          pi.sendUserMessage(content);
           return;
         }
 
-        pi.sendMessage({ customType: FLAIR_MESSAGE_TYPE, content, display: false }, { deliverAs: "followUp" });
+        pi.sendUserMessage(content, { deliverAs: "followUp" });
       },
     });
   }

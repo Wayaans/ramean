@@ -1,5 +1,5 @@
 ---
-name: tdd-lite
+name: tdd
 description: Test-driven development with red-green-refactor loop. Use when user wants to build features or fix bugs using TDD, mentions "red-green-refactor", wants integration tests, or asks for test-first development.
 ---
 
@@ -105,3 +105,13 @@ After all tests pass, look for [refactor candidates](refactoring.md):
 [ ] Code is minimal for this test
 [ ] No speculative features added
 ```
+
+**Subagents are available to use.**
+
+Subagents are available to use to help your TDD process, but they must be used carefully to avoid the horizontal-slicing anti-pattern. Follow these rules:
+
+- Use `agent` for implementation-shaped non-UI slices
+- Use `designer` for implementation-shaped UI/front-end slices
+- Use `reviewer` for read-only validation after implementation
+- One delegated task = one bounded dispatch
+- Never ask a subagent to orchestrate other subagents

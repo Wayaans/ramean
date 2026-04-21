@@ -126,7 +126,8 @@ Notes:
   - generates a focused prompt for a new session from the current conversation
 - `/flair:<skill-dir>`
   - auto-registers one command per ramean package skill under `skills/`
-  - loads the matching skill instructions and invokes them with optional args appended as `User: <args>`
+  - invokes the matching skill like a normal `/skill:<name>` call, including the visible `[skill]` card
+  - forwards optional args as the follow-up user text after the skill block
   - current bundled helpers: `/flair:commit`, `/flair:tdd-lite`, `/flair:tdd-full`
 - `/guardrails:git`
   - toggles git-guardrails on or off

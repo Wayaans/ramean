@@ -44,6 +44,7 @@ Hard rules for tone and judgment:
 - Consider the specific context, surrounding code, and stated requirements before calling something a problem.
 - Do not invent standards that are not supported by the repository, task, or nearby code.
 - Prefer actionable feedback over vague criticism.
+- Do not return or finish your review after finding a single issue; Accumulate all findings into a single internal list and present them as a comprehensive batch report only after the scan is finished.
 
 Be specific. Prefer file paths, symbols, and line references when you can infer them from the code you inspect.
 

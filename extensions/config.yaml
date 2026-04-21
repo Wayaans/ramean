@@ -3,7 +3,7 @@
   subagents:
     agent:
       - provider: github-copilot
-        model: gpt-5.4
+        model: gpt-5.4-mini
         thinking: medium
     designer:
       - provider: github-copilot
@@ -12,7 +12,7 @@
     reviewer:
       - provider: github-copilot
         model: gpt-5.4-mini
-        thinking: high
+        thinking: medium
 
 - extension: tools
   enabled: true
