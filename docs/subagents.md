@@ -127,6 +127,7 @@ Hard rules:
 ## Rules
 
 - subagents cannot use `dispatch`
+- subagents preserve the current active tool selection and only remove tools that are disallowed for that role
 - subagents can use normal tools, skills, commands, and read-only custom tools
 - subagents cannot use mutating or interactive custom tools
   - no `todo_write`
@@ -164,6 +165,7 @@ Hard rules:
 - `/agent:expand` provides the same dispatch-only expansion control from the command line
 - dispatch-only expansion state is session-local and resets on reload
 - concurrent top-level dispatches aggregate into one shared above-editor widget
+- while that widget is active, ramean also switches the normal streaming working indicator to a matching animated dispatch spinner
 - expanded results focus on task, output, and warnings/errors
 - usage tracking is not shown in the normal dispatch UI
 

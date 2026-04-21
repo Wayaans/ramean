@@ -11,9 +11,11 @@ Right now this package ships:
   - route by task shape: implementation work goes to `agent` or `designer`; review work goes to `reviewer`; mixed work should implement first and review second
   - routing relies on main-agent instructions plus subagent self-check prompts rather than keyword-based preflight rejection
 - custom top-level tools: grep, glob, list, todo_write, question, questionnaire, web_fetch, and find_docs
+  - ramean keeps these prioritized ahead of bash without overriding explicit Pi tool allowlists such as `--tools` or `--no-tools`
 - tools support commands: `/tools:status` and `/tools:compaction`
 - custom compaction using `github-copilot/gemini-3-flash-preview`
 - extra extensions: handoff, notify, minimal-mode, and git-guardrails
+  - minimal-mode also adds a subtler animated working indicator and clearer compact previews for `web_fetch` and `find_docs`
 
 ## Included today
 
@@ -41,6 +43,8 @@ Dispatch also adds a lightweight role-specific reminder at run time so `agent` a
 `/agent:insert` adds or refreshes a managed hard-rule reminder in an existing project `AGENTS.md` so the main agent keeps the subagent routing rules in view.
 
 `/agent:expand` and `Ctrl+Shift+O` control dispatch-only expansion for subagent dispatch cards without changing other tool output. `/agent:expand` supports `toggle`, `expand`, `collapse`, and `status`. This preference is session-local and resets on reload.
+
+While the standalone dispatch widget is active above the editor, ramean also swaps Pi's normal streaming working indicator to a matching animated dispatch spinner.
 
 `/ramean:commit` loads the `ramean-commit` skill instructions and generates a terse Conventional Commit message in code-block form.
 

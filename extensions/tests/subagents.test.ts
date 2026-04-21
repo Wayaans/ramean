@@ -29,6 +29,7 @@ import {
   setDispatchExpansionEnabled,
 } from "../subagents/dispatch-expansion.js";
 import { buildAgentStatusSummary, formatPromptState } from "../subagents/status.js";
+import { filterSubagentActiveTools } from "../subagents/runtime.js";
 import { registerDispatchTool } from "../tools/dispatch.js";
 import type { DispatchDetails } from "../types/subagents.js";
 
@@ -379,6 +380,12 @@ test("final output concatenates all text parts from the last assistant message o
     ]),
     "",
   );
+});
+
+test("subagent tool restrictions preserve explicit allowlists while removing forbidden tools", () => {
+  assert.deepEqual(filterSubagentActiveTools(["read", "grep", "dispatch"], "agent"), ["read", "grep"]);
+  assert.deepEqual(filterSubagentActiveTools(["read", "edit", "write", "bash"], "reviewer"), ["read", "bash"]);
+  assert.deepEqual(filterSubagentActiveTools([], "reviewer"), []);
 });
 
 test("dispatch widget aggregates standalone dispatches", () => {

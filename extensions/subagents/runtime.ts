@@ -7,16 +7,25 @@ function getRoleFromEnv(): CanonicalAgentName | null {
   return normalizeAgentName(process.env.RAMEAN_SUBAGENT_ROLE ?? "agent");
 }
 
-function applyRoleToolRestrictions(pi: ExtensionAPI, role: CanonicalAgentName): void {
-  const allTools = pi.getAllTools().map((tool) => tool.name);
-
-  const filtered = allTools.filter((name) => {
+export function filterSubagentActiveTools(activeTools: readonly string[], role: CanonicalAgentName): string[] {
+  return activeTools.filter((name) => {
     if (name === "dispatch") return false;
     if (role === "reviewer" && (name === "edit" || name === "write")) return false;
     return true;
   });
+}
 
-  pi.setActiveTools(filtered);
+function applyRoleToolRestrictions(pi: ExtensionAPI, role: CanonicalAgentName): void {
+  const availableTools = new Set(pi.getAllTools().map((tool) => tool.name));
+  const currentActiveTools = pi.getActiveTools().filter((name) => availableTools.has(name));
+  const filtered = filterSubagentActiveTools(currentActiveTools, role);
+
+  if (
+    filtered.length !== currentActiveTools.length
+    || filtered.some((name, index) => currentActiveTools[index] !== name)
+  ) {
+    pi.setActiveTools(filtered);
+  }
 }
 
 export function registerSubagentRuntime(pi: ExtensionAPI): boolean {

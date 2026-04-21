@@ -52,6 +52,7 @@ Behavior:
 - based on the Pi minimal-mode example
 - keeps `write` and `edit` unchanged
 - affects other tool displays by hiding or shrinking collapsed output
+- uses a subtler animated working indicator while minimal mode is active
 - expanded view still shows the full tool result
 
 Current scope:
@@ -59,6 +60,7 @@ Current scope:
 - built-in `read`
 - built-in `bash`
 - custom tool result displays like `grep`, `glob`, `list`, `web_fetch`, and `find_docs`
+- `web_fetch` and `find_docs` now keep collapsed views compact by default and show clearer target/query previews
 - `todo_write`, `question`, and `questionnaire` keep their normal rendering
 - subagent dispatch UI is not changed by this extension
 - subagent runtime is not changed by this extension

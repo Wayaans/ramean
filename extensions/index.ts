@@ -18,6 +18,7 @@ import { registerNotifyExtension } from "./others/notify.js";
 import { registerToolsCompactionExtension } from "./others/tools-compaction.js";
 import { isSubagentEnabled } from "./subagents/config.js";
 import { registerSubagentRuntime } from "./subagents/runtime.js";
+import { resetStandaloneDispatchWidget } from "./subagents/standalone-widget.js";
 import { registerDispatchTool } from "./tools/dispatch.js";
 import { registerCustomToolsExtension } from "./tools/index.js";
 
@@ -30,6 +31,16 @@ export default function rameanExtensionPack(pi: ExtensionAPI, context?: Extensio
   if (runningAsSubagent) {
     return;
   }
+
+  pi.on("session_start", async (_event, ctx) => {
+    if (!ctx.hasUI) return;
+    resetStandaloneDispatchWidget(ctx);
+  });
+
+  pi.on("session_shutdown", async (_event, ctx) => {
+    if (!ctx.hasUI) return;
+    resetStandaloneDispatchWidget(ctx);
+  });
 
   registerMessageRenderers(pi);
   registerGuardrailsGitCommand(pi);

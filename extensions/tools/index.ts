@@ -13,6 +13,7 @@ import {
 import { Type } from "@sinclair/typebox";
 import { Text } from "@mariozechner/pi-tui";
 import { registerQuestionTools } from "../UI/question-tools.js";
+import { summarizeText } from "../core/utils.js";
 import { isMinimalToolDisplayEnabled } from "../others/minimal-mode.js";
 import { CUSTOM_TOOL_NAMES, type CustomToolConfigState, type CustomToolName } from "../types/tools.js";
 import { isCustomToolName, loadMergedToolConfig, resolveRuntimeToolConfig } from "./config.js";
@@ -67,6 +68,21 @@ type ListToolParams = { path?: string; glob?: string; limit?: number };
 type TodoWriteToolParams = { action: "read" | "write" | "clear"; todos?: StoredTodo[] };
 type WebFetchToolParams = { url: string; timeoutSeconds?: number };
 type FindDocsToolParams = { query: string; library?: string; libraryId?: string };
+type WebFetchDetails = {
+  url?: string;
+  fetchedUrl?: string;
+  status?: number;
+  contentType?: string;
+  fullOutputPath?: string;
+};
+
+type FindDocsDetails = {
+  library?: string;
+  libraryId?: string;
+  query?: string;
+  resolved?: boolean;
+  fullOutputPath?: string;
+};
 
 const GlobParams = Type.Object({
   pattern: Type.String({ description: "Glob pattern, e.g. **/*.ts or src/**/*.tsx" }),
@@ -99,6 +115,37 @@ const FindDocsParams = Type.Object({
   libraryId: Type.Optional(Type.String({ description: "Optional Context7 library ID like /facebook/react" })),
 }) as any;
 
+type SystemPromptOptionsLike = {
+  selectedTools?: string[];
+};
+
+export function buildToolGuidanceLines(
+  options: SystemPromptOptionsLike,
+  toolConfig: CustomToolConfigState,
+): string[] {
+  const selectedTools = new Set(options.selectedTools ?? []);
+  return TOOL_GUIDANCE
+    .filter((entry) => toolConfig[entry.name] && selectedTools.has(entry.name))
+    .map((entry) => `- ${entry.text}`);
+}
+
+export function buildToolGuidanceSection(
+  options: SystemPromptOptionsLike,
+  toolConfig: CustomToolConfigState,
+): string | undefined {
+  const guidance = buildToolGuidanceLines(options, toolConfig);
+  if (guidance.length === 0) {
+    return undefined;
+  }
+
+  return [
+    "## Ramean Tool Preference",
+    "Prefer enabled dedicated top-level tools before using bash:",
+    ...guidance,
+    "Use bash only when an enabled dedicated tool cannot accomplish the task.",
+  ].join("\n");
+}
+
 export function registerCustomToolsExtension(pi: ExtensionAPI): void {
   let todos: StoredTodo[] = [];
   const getRuntimeToolConfig = (cwd: string): CustomToolConfigState => {
@@ -121,13 +168,14 @@ export function registerCustomToolsExtension(pi: ExtensionAPI): void {
 
   const applyToolPriorityForContext = (ctx: ExtensionContext): void => {
     const toolConfig = getRuntimeToolConfig(ctx.cwd);
+    const activeTools = pi.getActiveTools();
     const merged = mergePrioritizedActiveTools({
       availableTools: pi.getAllTools().map((tool) => tool.name),
-      activeTools: pi.getActiveTools(),
+      activeTools,
       toolConfig,
     });
 
-    if (merged.length > 0) {
+    if (!sameToolList(activeTools, merged)) {
       pi.setActiveTools(merged);
     }
   };
@@ -282,9 +330,18 @@ export function registerCustomToolsExtension(pi: ExtensionAPI): void {
         contentType: response.headers.get("content-type") ?? undefined,
       });
     },
-    renderResult(result, options) {
-      if (isMinimalCollapsed(options.expanded)) {
-        return new Text("", 0, 0);
+    renderCall(args, theme) {
+      return new Text(
+        `${theme.fg("toolTitle", theme.bold("web_fetch"))} ${theme.fg("accent", formatWebFetchTarget(args))}`,
+        0,
+        0,
+      );
+    },
+    renderResult(result, options, theme) {
+      const details = result.details as WebFetchDetails | undefined;
+      const summary = formatWebFetchSummary(details);
+      if (!options.expanded) {
+        return new Text(summary ? theme.fg("dim", `↳ ${summary}`) : "", 0, 0);
       }
       return renderTextResult(result);
     },
@@ -328,9 +385,18 @@ export function registerCustomToolsExtension(pi: ExtensionAPI): void {
         query: input.query,
       });
     },
-    renderResult(result, options) {
-      if (isMinimalCollapsed(options.expanded)) {
-        return new Text("", 0, 0);
+    renderCall(args, theme) {
+      return new Text(
+        `${theme.fg("toolTitle", theme.bold("find_docs"))} ${theme.fg("accent", formatFindDocsTarget(args))}`,
+        0,
+        0,
+      );
+    },
+    renderResult(result, options, theme) {
+      const details = result.details as FindDocsDetails | undefined;
+      const summary = formatFindDocsSummary(details);
+      if (!options.expanded) {
+        return new Text(summary ? theme.fg("dim", `↳ ${summary}`) : "", 0, 0);
       }
       return renderTextResult(result);
     },
@@ -342,26 +408,21 @@ export function registerCustomToolsExtension(pi: ExtensionAPI): void {
   };
 
   pi.on("session_start", async (_event, ctx) => restoreAndApply(ctx));
+  pi.on("session_tree", async (_event, ctx) => restoreAndApply(ctx));
 
-  pi.on("before_agent_start", async (_event, ctx) => {
+  pi.on("before_agent_start", async (event, ctx) => {
     restoreAndApply(ctx);
     const toolConfig = getRuntimeToolConfig(ctx.cwd);
-
-    const guidance = TOOL_GUIDANCE.filter((entry) => toolConfig[entry.name]).map((entry) => `- ${entry.text}`);
-    if (guidance.length === 0) {
+    const systemPromptOptions = (event as { systemPromptOptions?: SystemPromptOptionsLike }).systemPromptOptions
+      ?? { selectedTools: pi.getActiveTools() };
+    const guidanceSection = buildToolGuidanceSection(systemPromptOptions, toolConfig);
+    if (!guidanceSection) {
       return;
     }
 
+    const baseSystemPrompt = typeof event.systemPrompt === "string" ? event.systemPrompt : "";
     return {
-      message: {
-        customType: "ramean-tools-guidance",
-        content: [
-          "Prefer enabled dedicated top-level tools before using bash:",
-          ...guidance,
-          "Use bash only when an enabled dedicated tool cannot accomplish the task.",
-        ].join("\n"),
-        display: false,
-      },
+      systemPrompt: baseSystemPrompt ? `${baseSystemPrompt}\n\n${guidanceSection}` : guidanceSection,
     };
   });
 
@@ -396,19 +457,18 @@ export function mergePrioritizedActiveTools(options: {
   toolConfig: CustomToolConfigState;
 }): string[] {
   const available = new Set(options.availableTools);
-  const active = options.activeTools.filter((name) => available.has(name));
-
-  const prioritizedCustomTools = CUSTOM_TOOL_PRIORITY.filter((name) => available.has(name) && options.toolConfig[name]);
-  const prioritizedBuiltins = FALLBACK_PRIORITY_TOOLS.filter((name) => active.includes(name));
-  const prioritized = [...prioritizedCustomTools, ...prioritizedBuiltins];
-  const prioritizedSet = new Set<string>(prioritized);
-
-  const remainingActive = active.filter((name) => {
-    if (prioritizedSet.has(name)) return false;
+  const active = options.activeTools.filter((name) => {
+    if (!available.has(name)) return false;
     if (isCustomToolName(name) && !options.toolConfig[name]) return false;
     return true;
   });
 
+  const prioritizedCustomTools = CUSTOM_TOOL_PRIORITY.filter((name) => active.includes(name));
+  const prioritizedBuiltins = FALLBACK_PRIORITY_TOOLS.filter((name) => active.includes(name));
+  const prioritized = [...prioritizedCustomTools, ...prioritizedBuiltins];
+  const prioritizedSet = new Set<string>(prioritized);
+
+  const remainingActive = active.filter((name) => !prioritizedSet.has(name));
   return [...prioritized, ...remainingActive];
 }
 
@@ -522,6 +582,10 @@ export function formatTodos(todos: StoredTodo[]): string {
     .join("\n");
 }
 
+function sameToolList(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((name, index) => right[index] === name);
+}
+
 function isMinimalCollapsed(expanded: boolean): boolean {
   return isMinimalToolDisplayEnabled() && !expanded;
 }
@@ -536,6 +600,54 @@ function formatMinimalCount(result: { content: Array<{ type: string; text?: stri
   const value = text?.type === "text" ? (text.text ?? "") : "";
   const count = value.trim() ? value.split("\n").filter(Boolean).length : 0;
   return count > 0 ? `→ ${count} ${noun}` : "";
+}
+
+function summarizeUrlForDisplay(value: string | undefined, maxLength = 88): string {
+  if (!value) return "...";
+  const trimmed = value.trim();
+  if (!trimmed) return "...";
+
+  try {
+    const parsed = new URL(trimmed.startsWith("http") ? trimmed : buildMarkdownProxyUrl(trimmed));
+    const compactPath = `${parsed.hostname}${parsed.pathname}${parsed.search}`;
+    return summarizeText(compactPath || parsed.hostname, maxLength);
+  } catch {
+    return summarizeText(trimmed, maxLength);
+  }
+}
+
+export function formatWebFetchTarget(args: { url?: unknown }): string {
+  return summarizeUrlForDisplay(typeof args.url === "string" ? args.url : undefined);
+}
+
+export function formatWebFetchSummary(details: WebFetchDetails | undefined): string {
+  if (!details) return "";
+  const source = summarizeUrlForDisplay(details.url ?? details.fetchedUrl, 72);
+  const status = typeof details.status === "number" ? `status ${details.status}` : undefined;
+  const type = typeof details.contentType === "string" ? summarizeText(details.contentType, 32) : undefined;
+  return [source, status, type].filter(Boolean).join(" • ");
+}
+
+export function formatFindDocsTarget(args: { library?: unknown; libraryId?: unknown; query?: unknown }): string {
+  const library = typeof args.libraryId === "string" && args.libraryId.trim()
+    ? args.libraryId.trim()
+    : typeof args.library === "string" && args.library.trim()
+      ? args.library.trim()
+      : "library?";
+  const query = typeof args.query === "string" ? summarizeText(args.query, 56) : "query?";
+  return summarizeText(`${library} • ${query}`, 88);
+}
+
+export function formatFindDocsSummary(details: FindDocsDetails | undefined): string {
+  if (!details) return "";
+  if (details.resolved === false) {
+    const library = details.library?.trim() || "library lookup";
+    return summarizeText(`${library} • no Context7 match`, 88);
+  }
+
+  const library = details.libraryId?.trim() || details.library?.trim() || "docs";
+  const query = details.query?.trim() ? summarizeText(details.query, 56) : undefined;
+  return [library, query].filter(Boolean).join(" • ");
 }
 
 function buildMarkdownProxyUrl(input: string): string {

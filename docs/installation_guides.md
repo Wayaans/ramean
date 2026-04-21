@@ -83,7 +83,8 @@ Notes:
 
 - the `subagent` extension entry with `enabled: false` disables `dispatch` and `/agent:spawn`.
 - `/agent`, `/agent:expand`, `/agent:insert`, `/agent:prompt`, and `/agent:status` remain available even when subagents are disabled.
-- the `tools` extension entry with `enabled: false` removes ramean custom tools from the default active tool set.
+- the `tools` extension entry with `enabled: false` removes ramean custom tools from the active tool set.
+- explicit Pi tool allowlists such as `--tools` and `--no-tools` are respected; ramean only reorders or filters tools that are already active.
 - the `handoff` extension entry with `enabled: false` disables `/handoff`.
 - the `notify` extension entry with `enabled: false` disables terminal-ready notifications.
 - the `minimal-mode` extension entry with `enabled: false` restores normal tool display behavior.
@@ -159,10 +160,12 @@ Custom top-level tools:
 Notes:
 
 - the main agent should prefer these dedicated tools before falling back to `bash`
+- dedicated-tool guidance is injected directly into the per-turn system prompt based on the currently selected tools
 - subagents cannot use `todo_write`, `question`, or `questionnaire`
 - subagents can still use the read-only custom tools
 - `/tools:compaction` and the built-in `/compact` use the same ramean custom compaction hook for the main agent
 - if `minimal-mode` is enabled, collapsed displays stay compact while `write` and `edit` keep their normal rendering
+- `web_fetch` and `find_docs` keep compact collapsed previews by default, and minimal mode gives them clearer target/query labels plus a subtler animated working indicator
 
 ## Other extensions
 
@@ -184,3 +187,4 @@ Notes:
 - dispatch-only expansion state is session-local and resets on reload
 - running indicators animate with braille spinner frames
 - concurrent standalone dispatches share one above-editor widget
+- when that widget is active, ramean swaps the normal streaming working indicator to a matching animated dispatch spinner

@@ -6,7 +6,16 @@ import path from "node:path";
 import { stringify } from "yaml";
 import { buildToolsCompactionPrompt } from "../others/tools-compaction.js";
 import { loadMergedToolConfig, resolveRuntimeToolConfig } from "../tools/config.js";
-import { formatTodos, mergePrioritizedActiveTools, suggestReplacementTool } from "../tools/index.js";
+import {
+  buildToolGuidanceLines,
+  formatFindDocsSummary,
+  formatFindDocsTarget,
+  formatTodos,
+  formatWebFetchSummary,
+  formatWebFetchTarget,
+  mergePrioritizedActiveTools,
+  suggestReplacementTool,
+} from "../tools/index.js";
 import { buildToolsStatusDetails, buildToolsStatusSummary } from "../tools/status.js";
 
 test("tool config loads defaults and merges project overrides", () => {
@@ -69,7 +78,7 @@ test("runtime tool config disables mutating and interactive custom tools in suba
   assert.equal(runtimeConfig.questionnaire, false);
 });
 
-test("priority merge keeps custom tools ahead of read edit write bash without reintroducing blocked built-ins", () => {
+test("priority merge reorders active tools without re-enabling omitted tools", () => {
   const merged = mergePrioritizedActiveTools({
     availableTools: [
       "read",
@@ -86,7 +95,7 @@ test("priority merge keeps custom tools ahead of read edit write bash without re
       "web_fetch",
       "find_docs",
     ],
-    activeTools: ["read", "bash", "dispatch"],
+    activeTools: ["read", "bash", "dispatch", "find_docs", "grep"],
     toolConfig: {
       grep: true,
       glob: true,
@@ -99,19 +108,29 @@ test("priority merge keeps custom tools ahead of read edit write bash without re
     },
   });
 
-  assert.deepEqual(merged.slice(0, 8), [
-    "grep",
-    "glob",
-    "list",
-    "todo_write",
-    "web_fetch",
-    "find_docs",
-    "read",
-    "bash",
-  ]);
-  assert.equal(merged.includes("edit"), false);
-  assert.equal(merged.includes("write"), false);
-  assert.equal(merged.includes("dispatch"), true);
+  assert.deepEqual(merged, ["grep", "find_docs", "read", "bash", "dispatch"]);
+  assert.equal(merged.includes("glob"), false);
+  assert.equal(merged.includes("todo_write"), false);
+});
+
+
+test("priority merge preserves explicit no-tools selection", () => {
+  const merged = mergePrioritizedActiveTools({
+    availableTools: ["read", "bash", "grep", "find_docs"],
+    activeTools: [],
+    toolConfig: {
+      grep: true,
+      glob: true,
+      list: true,
+      todo_write: true,
+      question: true,
+      questionnaire: true,
+      web_fetch: true,
+      find_docs: true,
+    },
+  });
+
+  assert.deepEqual(merged, []);
 });
 
 test("bash replacement suggestions map common shell commands to dedicated tools", () => {
@@ -163,19 +182,65 @@ test("tools status details report active priority order and inactive tools", () 
       ];
     },
     getActiveTools() {
-      return ["read", "bash"];
+      return ["read", "bash", "grep"];
     },
   } as any;
 
   const details = buildToolsStatusDetails(pi, cwd);
   assert.deepEqual(
     details.activeTools.map((tool) => tool.name),
-    ["grep", "glob", "read", "bash"],
+    ["grep", "read", "bash"],
   );
   assert.equal(details.activeTools[0]?.priority, 1);
-  assert.equal(details.inactiveTools.length, 0);
+  assert.deepEqual(details.inactiveTools.map((tool) => tool.name), ["glob"]);
   assert.equal(details.runtime, "main");
 });
+
+test("tool guidance only includes enabled selected dedicated tools", () => {
+  assert.deepEqual(
+    buildToolGuidanceLines(
+      { selectedTools: ["read", "grep", "bash", "find_docs"] },
+      {
+        grep: true,
+        glob: true,
+        list: true,
+        todo_write: true,
+        question: true,
+        questionnaire: true,
+        web_fetch: false,
+        find_docs: true,
+      },
+    ),
+    [
+      "- grep for content search across the codebase",
+      "- find_docs for current framework and library docs via Context7",
+    ],
+  );
+});
+
+
+test("web fetch and docs summaries stay compact in the tool UI", () => {
+  assert.equal(formatWebFetchTarget({ url: "https://example.com/docs/api/reference?tab=auth" }), "example.com/docs/api/reference?tab=auth");
+  assert.match(
+    formatWebFetchSummary({
+      url: "https://example.com/docs/api/reference?tab=auth",
+      status: 200,
+      contentType: "text/markdown; charset=utf-8",
+    }),
+    /example\.com\/docs\/api\/reference\?tab=auth • status 200 • text\/markdown; charset=utf-8/,
+  );
+
+  assert.equal(formatFindDocsTarget({ library: "react", query: "useMemo dependencies" }), "react • useMemo dependencies");
+  assert.equal(
+    formatFindDocsSummary({ libraryId: "/facebook/react", query: "useMemo dependencies" }),
+    "/facebook/react • useMemo dependencies",
+  );
+  assert.equal(
+    formatFindDocsSummary({ library: "unknown-lib", query: "hooks", resolved: false }),
+    "unknown-lib • no Context7 match",
+  );
+});
+
 
 test("tools status summary includes ordered active tools and disabled config section", () => {
   const summary = buildToolsStatusSummary({

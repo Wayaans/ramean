@@ -38,6 +38,9 @@ When these tools are enabled, ramean should prioritize them ahead of:
 
 The main agent should prefer the dedicated top-level tool whenever it can satisfy the task.
 
+Ramean now reorders the currently active tool set instead of silently re-enabling omitted tools.
+That means explicit Pi tool selections such as `--tools ...` and `--no-tools` are preserved.
+
 ## Bash replacement guard
 
 When a dedicated tool is enabled, ramean blocks common bash equivalents and tells the agent to use the tool instead.
@@ -56,9 +59,12 @@ When the `minimal-mode` extension is enabled:
 
 - collapsed tool displays stay compact
 - expanded tool displays still show the full result
+- `web_fetch` and `find_docs` show the target URL or docs query in the collapsed UI instead of a generic tool-name-only row
 - `write` and `edit` are intentionally left unchanged
 - `todo_write`, `question`, and `questionnaire` keep their normal rendering
 - subagent runtime is not changed by `minimal-mode`
+
+Even when minimal mode is off, `web_fetch` and `find_docs` now keep their default collapsed view compact and only show the full fetched/docs output when expanded.
 
 ## Commands
 
@@ -126,8 +132,9 @@ Docs-style config example:
 Notes:
 
 - project config overrides defaults
-- if `enabled: false`, ramean removes these custom tools from the default active tool set
+- if `enabled: false`, ramean removes these custom tools from the active tool set
 - individual tools can be enabled or disabled under the `tools` block
+- explicit Pi tool allowlists such as `--tools` and `--no-tools` are respected; ramean only reorders or filters tools that are already active
 - malformed ramean config files trigger a warning and fall back to defaults for the affected extension
 
 ## Subagents

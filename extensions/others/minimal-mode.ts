@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { createBashTool, createReadTool } from "@mariozechner/pi-coding-agent";
 import { Text } from "@mariozechner/pi-tui";
+import { setMinimalModeWorkingIndicator } from "../UI/working-indicator.js";
 import { shortenPath } from "../core/utils.js";
 
 let minimalToolDisplayEnabled = false;
@@ -11,6 +12,16 @@ export function isMinimalToolDisplayEnabled(): boolean {
 
 export function registerMinimalModeExtension(pi: ExtensionAPI): void {
   minimalToolDisplayEnabled = true;
+
+  pi.on("session_start", async (_event, ctx) => {
+    if (!ctx.hasUI) return;
+    setMinimalModeWorkingIndicator(ctx, true);
+  });
+
+  pi.on("session_shutdown", async (_event, ctx) => {
+    if (!ctx.hasUI) return;
+    setMinimalModeWorkingIndicator(ctx, false);
+  });
 
   pi.registerTool({
     name: "read",
