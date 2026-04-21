@@ -127,7 +127,7 @@ Notes:
 - `/flair:<skill-dir>`
   - auto-registers one command per ramean package skill under `skills/`
   - loads the matching skill instructions and invokes them with optional args appended as `User: <args>`
-  - current bundled example: `/flair:ramean-commit`
+  - current bundled helpers: `/flair:commit`, `/flair:tdd-lite`, `/flair:tdd-full`
 - `/guardrails:git`
   - toggles git-guardrails on or off
   - optional args: `enable`, `disable`, and `status`
