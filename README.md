@@ -29,7 +29,7 @@ Right now this package ships:
 - [x] minimal tools
 - [x] git guardrails
 
-Useful commands include `/agent`, `/agent:expand`, `/agent:insert`, `/agent:prompt`, `/agent:spawn`, `/agent:status`, `/ramean:commit`, `/tools:status`, `/tools:compaction`, `/handoff`, and `/guardrails:git`.
+Useful commands include `/agent`, `/agent:expand`, `/agent:insert`, `/agent:prompt`, `/agent:spawn`, `/agent:status`, `/flair:<skill-dir>`, `/tools:status`, `/tools:compaction`, `/handoff`, and `/guardrails:git`.
 
 Routing at a glance:
 
@@ -46,7 +46,7 @@ Dispatch also adds a lightweight role-specific reminder at run time so `agent` a
 
 While the standalone dispatch widget is active above the editor, ramean also swaps Pi's normal streaming working indicator to a matching animated dispatch spinner.
 
-`/ramean:commit` loads the `ramean-commit` skill instructions and generates a terse Conventional Commit message in code-block form.
+`/flair:<skill-dir>` loads the matching ramean package skill from `skills/` and invokes it with the same hidden prompt style ramean used for `/ramean:commit`. The bundled commit helper is now `/flair:ramean-commit`.
 
 `/guardrails:git` toggles the git-guardrails extension, which is disabled by default and blocks common dangerous git bash commands such as `git push` and `git reset --hard` when enabled. The command now leaves a visible status message showing whether guardrails are enabled or disabled and where the project override lives.
 

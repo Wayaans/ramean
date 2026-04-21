@@ -1,10 +1,10 @@
 ---
-name: ramean-commit
+name: commit
 description: >
   Ultra-compressed commit message generator. Cuts noise from commit messages while preserving
   intent and reasoning. Conventional Commits format. Subject ≤50 chars, body only when "why"
   isn't obvious. Use when user says "write a commit", "commit message", "generate commit",
-  "/commit", or invokes /ramean:commit. Auto-triggers when staging changes.
+  "/commit", or invokes /flair:commit.
 ---
 
 Write commit messages terse and exact. Conventional Commits format. No fluff. Why over what.
@@ -70,4 +70,4 @@ Always include body for: breaking changes, security fixes, data migrations, anyt
 
 ## Boundaries
 
-Only generates the commit message. Does not run `git commit`, does not stage files, does not amend. Output the message as a plain text ready to paste. "stop ramean-commit" or "normal mode": revert to verbose commit style.
+Only generates the commit message. Does not run `git commit`, does not stage files, does not amend. Output the message as a plain text ready to paste. "stop commit" or "normal mode": revert to verbose commit style.

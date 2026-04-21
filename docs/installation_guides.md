@@ -124,8 +124,10 @@ Notes:
   - triggers custom session compaction using `github-copilot/gemini-3-flash-preview`
 - `/handoff <goal>`
   - generates a focused prompt for a new session from the current conversation
-- `/ramean:commit`
-  - loads the `ramean-commit` skill instructions and generates a terse Conventional Commit message
+- `/flair:<skill-dir>`
+  - auto-registers one command per ramean package skill under `skills/`
+  - loads the matching skill instructions and invokes them with optional args appended as `User: <args>`
+  - current bundled example: `/flair:ramean-commit`
 - `/guardrails:git`
   - toggles git-guardrails on or off
   - optional args: `enable`, `disable`, and `status`
