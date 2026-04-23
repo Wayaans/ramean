@@ -400,10 +400,10 @@ test("subagent tool restrictions preserve explicit allowlists while removing for
 });
 
 
-test("reviewer and agent dispatch use the resident execution path while designer stays on the legacy path", () => {
+test("all built-in subagents use the resident execution path", () => {
   assert.equal(selectDispatchExecutionPath("reviewer"), "resident");
   assert.equal(selectDispatchExecutionPath("agent"), "resident");
-  assert.equal(selectDispatchExecutionPath("designer"), "legacy-child-launch");
+  assert.equal(selectDispatchExecutionPath("designer"), "resident");
 });
 
 
@@ -417,6 +417,7 @@ test("resident dispatch active tools preserve parent intent while removing forbi
     ["read", "edit", "write"],
   );
   assert.deepEqual(buildDispatchActiveTools(undefined, "reviewer"), ["read", "bash"]);
+  assert.deepEqual(buildDispatchActiveTools([], "reviewer"), []);
 });
 
 test("dispatch widget aggregates standalone dispatches", () => {
@@ -685,6 +686,7 @@ test("agent status summary includes effective runtime and fallback notes", () =>
         agent: "reviewer",
         title: "Reviewer",
         shortName: "RV",
+        executionPath: "resident runtime",
         provider: "github-copilot",
         model: "gpt-5.4-mini",
         thinking: "high",
@@ -696,6 +698,7 @@ test("agent status summary includes effective runtime and fallback notes", () =>
 
   assert.match(summary, /enabled: true/);
   assert.doesNotMatch(summary, /parallel\.max/);
+  assert.match(summary, /execution: resident runtime/);
   assert.match(summary, /runtime: github-copilot\/gpt-5.4-mini\/high/);
   assert.match(summary, /prompt: default/);
   assert.match(summary, /Using the active main-agent model with low thinking\./);

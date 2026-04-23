@@ -171,6 +171,7 @@ function createStatusComponent(details: AgentStatusMessageDetails, theme: any) {
     container.addChild(new Spacer(1));
     container.addChild(new Text(`${theme.fg("toolTitle", agent.title)} ${theme.fg("dim", `(${agent.shortName})`)}`, 0, 0));
     const runtime = [agent.provider, agent.model, agent.thinking].filter(Boolean).join("/") || "pi defaults";
+    container.addChild(new Text(`execution: ${agent.executionPath}`, 0, 0));
     container.addChild(new Text(`runtime: ${runtime}`, 0, 0));
     container.addChild(new Text(`prompt: ${agent.promptState}`, 0, 0));
     if (agent.fallbackNote) {

@@ -99,8 +99,8 @@ Notes:
 
 Current subagent execution state:
 
-- `reviewer` and `agent` use the resident runtime path
-- `designer` still uses the legacy child-launch path until the remaining migration slices land
+- `agent`, `designer`, and `reviewer` use the resident runtime path by default
+- the earlier legacy child-launch path is no longer part of the active built-in subagent flow
 - the command and tool surface stays the same
 
 ## Commands
@@ -125,7 +125,7 @@ Current subagent execution state:
   - optional args: `toggle`, `expand`, `collapse`, and `status`
   - state is session-local and resets on reload
 - `/agent:status`
-  - shows current runtime, prompt state, and whether the subagent extension is enabled
+  - shows current execution path, runtime, prompt state, and whether the subagent extension is enabled
 - `/tools:status`
   - shows available built-in and extension tools in current priority order
 - `/tools:compaction`

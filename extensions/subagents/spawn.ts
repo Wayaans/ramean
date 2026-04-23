@@ -1,7 +1,3 @@
-import { spawn } from "node:child_process";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import type { Message, Model } from "@mariozechner/pi-ai";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import {
@@ -11,7 +7,6 @@ import {
   getAgentDir,
   ModelRegistry,
   SessionManager,
-  withFileMutationQueue,
 } from "@mariozechner/pi-coding-agent";
 import { getSubagent, validAgentHint } from "./agents.js";
 import { loadPromptResolution } from "./prompts.js";
@@ -69,31 +64,6 @@ function getSharedServices(): { authStorage: AuthStorage; modelRegistry: ModelRe
     authStorage: sharedAuthStorage,
     modelRegistry: sharedModelRegistry,
   };
-}
-
-function getPiInvocation(args: string[]): { command: string; args: string[] } {
-  const currentScript = process.argv[1];
-  const isBunVirtualScript = currentScript?.startsWith("/$bunfs/root/");
-  if (currentScript && !isBunVirtualScript && fs.existsSync(currentScript)) {
-    return { command: process.execPath, args: [currentScript, ...args] };
-  }
-
-  const execName = path.basename(process.execPath).toLowerCase();
-  const isGenericRuntime = /^(node|bun)(\.exe)?$/.test(execName);
-  if (!isGenericRuntime) {
-    return { command: process.execPath, args };
-  }
-
-  return { command: "pi", args };
-}
-
-async function writePromptToTempFile(agent: CanonicalAgentName, prompt: string): Promise<{ dir: string; filePath: string }> {
-  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "ramean-subagent-"));
-  const filePath = path.join(dir, `${agent}.md`);
-  await withFileMutationQueue(filePath, async () => {
-    await fs.promises.writeFile(filePath, prompt, { encoding: "utf-8", mode: 0o600 });
-  });
-  return { dir, filePath };
 }
 
 export function getFinalOutput(messages: Message[]): string {
@@ -179,10 +149,16 @@ function getLatestTranscriptSummary(details: DispatchDetails): string | undefine
   return formatToolCall(item.name, item.args);
 }
 
-function summarizeToolResult(message: Message | undefined): string | undefined {
-  if (!message || message.role !== "toolResult") return undefined;
-  const text = message.content
-    .filter((part): part is Extract<Message["content"][number], { type: "text" }> => part.type === "text")
+function summarizeToolResult(
+  message: Message | { content?: string | Array<{ type?: string; text?: string }> } | undefined,
+): string | undefined {
+  if (!message || !("content" in message)) return undefined;
+  const content = message.content;
+  if (!Array.isArray(content)) {
+    return typeof content === "string" && content.trim() ? summarizeText(content.trim(), 120) : undefined;
+  }
+  const text = content
+    .filter((part): part is { type: "text"; text: string } => part?.type === "text" && typeof part.text === "string")
     .map((part) => part.text)
     .join("\n")
     .trim();
@@ -329,13 +305,13 @@ function resolveModelForResidentRuntime(options: {
 
 export function buildDispatchActiveTools(parentActiveTools: readonly string[] | undefined, role: CanonicalAgentName): string[] {
   const fallbackTools = ["read", "bash", "edit", "write"];
-  const activeTools = parentActiveTools && parentActiveTools.length > 0 ? [...parentActiveTools] : fallbackTools;
+  const activeTools = parentActiveTools === undefined ? fallbackTools : [...parentActiveTools];
   const filtered = filterSubagentActiveTools(activeTools, role);
   return [...new Set(filtered)];
 }
 
-export function selectDispatchExecutionPath(agent: CanonicalAgentName): "resident" | "legacy-child-launch" {
-  return agent === "designer" ? "legacy-child-launch" : "resident";
+export function selectDispatchExecutionPath(_agent: CanonicalAgentName): "resident" | "legacy-child-launch" {
+  return "resident";
 }
 
 function emitDispatchUpdate(
@@ -445,6 +421,11 @@ async function executeResidentDispatch(
     }
 
     if (event.type === "tool_execution_end") {
+      liveToolProgress = summarizeToolResult(event.result as { content?: Array<{ type?: string; text?: string }> } | undefined)
+        ?? liveToolProgress;
+      if (event.isError) {
+        details.warnings.push(`${event.toolName} reported an error.`);
+      }
       emitUpdate();
       return;
     }
@@ -525,218 +506,6 @@ async function executeResidentDispatch(
   return details;
 }
 
-async function executeLegacyDispatch(
-  options: ExecuteDispatchOptions,
-  agent: CanonicalAgentName,
-  details: DispatchDetails,
-  prompt: string,
-): Promise<DispatchDetails> {
-  const args: string[] = ["--mode", "json", "-p", "--no-session"];
-  const resolvedModel = resolveRequestedModel(options.context, agent, details.warnings);
-  if (resolvedModel.modelArg) args.push("--model", resolvedModel.modelArg);
-  if (resolvedModel.thinkingArg) args.push("--thinking", resolvedModel.thinkingArg);
-
-  let tempPromptDir: string | null = null;
-  let tempPromptPath: string | null = null;
-  let spinnerTimer: ReturnType<typeof setInterval> | null = null;
-  const messages: Message[] = [];
-  let partialAssistantMessage: Message | undefined;
-  let liveToolProgress: string | undefined;
-
-  const emitUpdate = () => {
-    emitDispatchUpdate(details, messages, partialAssistantMessage, liveToolProgress, options.onUpdate);
-  };
-
-  try {
-    emitUpdate();
-    spinnerTimer = setInterval(() => {
-      details.spinnerFrame = (details.spinnerFrame + 1) % RUNNING_STATUS_FRAMES.length;
-      emitUpdate();
-    }, 120);
-
-    if (prompt.trim()) {
-      const temp = await writePromptToTempFile(agent, prompt);
-      tempPromptDir = temp.dir;
-      tempPromptPath = temp.filePath;
-      args.push("--append-system-prompt", tempPromptPath);
-    }
-
-    args.push(buildDelegatedTask(agent, options.task));
-
-    const exitCode = await new Promise<number>((resolve) => {
-      const invocation = getPiInvocation(args);
-      const child = spawn(invocation.command, invocation.args, {
-        cwd: options.cwd,
-        shell: false,
-        env: {
-          ...process.env,
-          RAMEAN_SUBAGENT: "1",
-          RAMEAN_SUBAGENT_ROLE: agent,
-        },
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-
-      let stdoutBuffer = "";
-      let stderrBuffer = "";
-      let aborted = false;
-
-      const processLine = (line: string) => {
-        if (!line.trim()) return;
-        let event: Record<string, unknown>;
-        try {
-          event = JSON.parse(line) as Record<string, unknown>;
-        } catch {
-          return;
-        }
-
-        if (event.type === "message_update" && event.message) {
-          const message = event.message as Message;
-          if (message.role === "assistant") {
-            partialAssistantMessage = message;
-            emitUpdate();
-          }
-          return;
-        }
-
-        if (event.type === "tool_execution_start") {
-          liveToolProgress = formatToolCall(String(event.toolName ?? "tool"), (event.args as Record<string, unknown> | undefined) ?? {});
-          emitUpdate();
-          return;
-        }
-
-        if (event.type === "tool_execution_update") {
-          const toolName = String(event.toolName ?? "tool");
-          const toolArgs = (event.args as Record<string, unknown> | undefined) ?? {};
-          const partialResult = event.partialResult as { content?: Array<{ type?: string; text?: string }> } | undefined;
-          const partialText = partialResult?.content
-            ?.filter((part) => part?.type === "text" && typeof part.text === "string")
-            .map((part) => part.text)
-            .join("\n")
-            .trim();
-          liveToolProgress = partialText
-            ? `${formatToolCall(toolName, toolArgs)} — ${summarizeText(partialText, 80)}`
-            : formatToolCall(toolName, toolArgs);
-          emitUpdate();
-          return;
-        }
-
-        if (event.type === "tool_execution_end") {
-          emitUpdate();
-          return;
-        }
-
-        if (event.type === "message_end" && event.message) {
-          const message = event.message as Message;
-          messages.push(message);
-          partialAssistantMessage = undefined;
-          accumulateUsage(details.usage, message);
-          if (!details.model && message.role === "assistant" && message.model) {
-            details.model = message.model;
-          }
-          if (message.role === "assistant" && message.stopReason) {
-            details.stopReason = message.stopReason;
-          }
-          if (message.role === "assistant") {
-            liveToolProgress = undefined;
-          }
-          emitUpdate();
-          return;
-        }
-
-        if (event.type === "tool_result_end" && event.message) {
-          const message = event.message as Message;
-          messages.push(message);
-          liveToolProgress = summarizeToolResult(message) ?? liveToolProgress;
-          emitUpdate();
-        }
-      };
-
-      child.stdout.on("data", (data) => {
-        stdoutBuffer += data.toString();
-        const lines = stdoutBuffer.split("\n");
-        stdoutBuffer = lines.pop() ?? "";
-        for (const line of lines) processLine(line);
-      });
-
-      child.stderr.on("data", (data) => {
-        stderrBuffer += data.toString();
-      });
-
-      child.on("close", (code) => {
-        if (stdoutBuffer.trim()) processLine(stdoutBuffer);
-        if (stderrBuffer.trim()) {
-          details.warnings.push(`stderr: ${summarizeText(stderrBuffer, 160)}`);
-        }
-        if (aborted) {
-          details.stopReason = "aborted";
-          details.error = details.error ?? "Subagent aborted.";
-        }
-        resolve(code ?? 0);
-      });
-
-      child.on("error", (error) => {
-        details.error = error.message;
-        resolve(1);
-      });
-
-      const abortChild = () => {
-        aborted = true;
-        child.kill("SIGTERM");
-        setTimeout(() => {
-          if (!child.killed) child.kill("SIGKILL");
-        }, 1000);
-      };
-
-      if (options.signal?.aborted) abortChild();
-      else options.signal?.addEventListener("abort", abortChild, { once: true });
-    });
-
-    details.exitCode = exitCode;
-    details.output = getFinalOutput(messages) || details.output;
-    details.transcript = collectTranscript(messages);
-    details.streamlinedProgress = formatDispatchSummary(details);
-
-    if (details.transcript.length === 0 && details.output === "" && details.error === undefined) {
-      details.output = "No output returned from subagent.";
-    }
-
-    if (spinnerTimer) {
-      clearInterval(spinnerTimer);
-      spinnerTimer = null;
-    }
-
-    if (exitCode !== 0 || details.stopReason === "error" || details.stopReason === "aborted") {
-      details.status = "failed";
-      details.error = details.error ?? (details.output || `Subagent exited with code ${exitCode}.`);
-    } else {
-      details.status = "success";
-    }
-
-    options.onUpdate?.(details);
-    return details;
-  } finally {
-    if (spinnerTimer) {
-      clearInterval(spinnerTimer);
-    }
-
-    if (tempPromptPath) {
-      try {
-        fs.unlinkSync(tempPromptPath);
-      } catch {
-        // Ignore cleanup failures.
-      }
-    }
-
-    if (tempPromptDir) {
-      try {
-        fs.rmdirSync(tempPromptDir);
-      } catch {
-        // Ignore cleanup failures.
-      }
-    }
-  }
-}
-
 export async function executeDispatch(options: ExecuteDispatchOptions): Promise<DispatchDetails> {
   const agent = normalizeAgentName(options.requestedAgent);
   if (!agent) {
@@ -759,11 +528,7 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
     return details;
   }
 
-  if (selectDispatchExecutionPath(agent) === "resident") {
-    return executeResidentDispatch(options, agent, details, promptResolution.prompt);
-  }
-
-  return executeLegacyDispatch(options, agent, details, promptResolution.prompt);
+  return executeResidentDispatch(options, agent, details, promptResolution.prompt);
 }
 
 export function formatDispatchSummary(details: DispatchDetails): string {
