@@ -36,7 +36,7 @@ Reference for the ramean subagent extension.
   - leaves other tool output unchanged
   - state is session-local and resets on reload
 - `/agent:status`
-  - shows current subagent runtime, prompt state, and whether the extension is enabled
+  - shows current subagent execution path, runtime, prompt state, and whether the extension is enabled
 
 ## Tools
 
@@ -45,6 +45,18 @@ Reference for the ramean subagent extension.
   - route by task shape: implementation work goes to `agent` or `designer`; review, audit, critique, and final-pass validation go to `reviewer`
   - if a task needs both implementation and review, dispatch `agent` or `designer` first, then dispatch `reviewer` as a separate pass
   - when the main agent needs multiple subagents, it should issue multiple top-level `dispatch` calls in parallel
+
+## Runtime execution path
+
+Current runtime state:
+
+- `agent`, `designer`, and `reviewer` dispatches use the **resident runtime** path by default
+- the user-facing `dispatch` and `/agent:spawn` contract stays the same
+- the earlier legacy child-launch path is no longer part of the active built-in subagent flow
+
+Term:
+
+- **resident runtime** — the subagent runs inside the already loaded runtime
 
 ## Orchestration behavior
 

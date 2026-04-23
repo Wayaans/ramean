@@ -50,7 +50,19 @@ Subagents should always be available to the main agent with clear instructions, 
   - leave non-dispatch tool output unchanged
   - keep the state session-local and let it reset on reload
 - `/agent:status`
-  - show current subagent runtime, prompt state, and whether the extension is enabled
+  - show current subagent execution path, runtime, prompt state, and whether the extension is enabled
+
+## Runtime execution path
+
+Current runtime state:
+
+- `agent`, `designer`, and `reviewer` use the **resident runtime** path by default
+- this changes the execution path only; it does not change the subagent product contract
+- the earlier legacy child-launch path is no longer part of the active built-in subagent flow
+
+Term:
+
+- **resident runtime**: subagent execution inside the already loaded runtime
 
 ## System Prompt
 

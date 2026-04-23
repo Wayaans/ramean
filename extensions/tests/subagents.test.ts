@@ -22,7 +22,14 @@ import {
   updateProjectSubagentEnabled,
 } from "../subagents/config.js";
 import { buildSubagentRulesBlock, upsertSubagentRules } from "../subagents/agents-md.js";
-import { buildDelegatedTask, formatDispatchProgress, getFinalOutput, validateDispatchTask } from "../subagents/spawn.js";
+import {
+  buildDelegatedTask,
+  buildDispatchActiveTools,
+  formatDispatchProgress,
+  getFinalOutput,
+  selectDispatchExecutionPath,
+  validateDispatchTask,
+} from "../subagents/spawn.js";
 import {
   isDispatchExpansionEnabled,
   parseDispatchExpansionAction,
@@ -384,8 +391,33 @@ test("final output concatenates all text parts from the last assistant message o
 
 test("subagent tool restrictions preserve explicit allowlists while removing forbidden tools", () => {
   assert.deepEqual(filterSubagentActiveTools(["read", "grep", "dispatch"], "agent"), ["read", "grep"]);
+  assert.deepEqual(
+    filterSubagentActiveTools(["read", "todo_write", "question", "questionnaire", "grep"], "agent"),
+    ["read", "grep"],
+  );
   assert.deepEqual(filterSubagentActiveTools(["read", "edit", "write", "bash"], "reviewer"), ["read", "bash"]);
   assert.deepEqual(filterSubagentActiveTools([], "reviewer"), []);
+});
+
+
+test("all built-in subagents use the resident execution path", () => {
+  assert.equal(selectDispatchExecutionPath("reviewer"), "resident");
+  assert.equal(selectDispatchExecutionPath("agent"), "resident");
+  assert.equal(selectDispatchExecutionPath("designer"), "resident");
+});
+
+
+test("resident dispatch active tools preserve parent intent while removing forbidden tools by role", () => {
+  assert.deepEqual(
+    buildDispatchActiveTools(["read", "bash", "dispatch", "todo_write", "question", "grep"], "reviewer"),
+    ["read", "bash", "grep"],
+  );
+  assert.deepEqual(
+    buildDispatchActiveTools(["read", "edit", "write", "dispatch", "questionnaire"], "agent"),
+    ["read", "edit", "write"],
+  );
+  assert.deepEqual(buildDispatchActiveTools(undefined, "reviewer"), ["read", "bash"]);
+  assert.deepEqual(buildDispatchActiveTools([], "reviewer"), []);
 });
 
 test("dispatch widget aggregates standalone dispatches", () => {
@@ -654,6 +686,7 @@ test("agent status summary includes effective runtime and fallback notes", () =>
         agent: "reviewer",
         title: "Reviewer",
         shortName: "RV",
+        executionPath: "resident runtime",
         provider: "github-copilot",
         model: "gpt-5.4-mini",
         thinking: "high",
@@ -665,6 +698,7 @@ test("agent status summary includes effective runtime and fallback notes", () =>
 
   assert.match(summary, /enabled: true/);
   assert.doesNotMatch(summary, /parallel\.max/);
+  assert.match(summary, /execution: resident runtime/);
   assert.match(summary, /runtime: github-copilot\/gpt-5.4-mini\/high/);
   assert.match(summary, /prompt: default/);
   assert.match(summary, /Using the active main-agent model with low thinking\./);

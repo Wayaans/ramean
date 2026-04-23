@@ -88,6 +88,7 @@ export interface AgentStatusRow {
   agent: CanonicalAgentName;
   title: string;
   shortName: Uppercase<AgentAlias>;
+  executionPath: string;
   provider?: string;
   model?: string;
   thinking?: ThinkingLevel;

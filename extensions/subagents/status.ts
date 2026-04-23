@@ -3,6 +3,7 @@ import { getSubagent, listSubagentNames } from "./agents.js";
 import { loadMergedSubagentConfig } from "./config.js";
 import { loadPromptResolution } from "./prompts.js";
 import { resolveEffectiveAgentRuntime } from "./runtime-config.js";
+import { selectDispatchExecutionPath } from "./spawn.js";
 import type { AgentStatusMessageDetails, PromptResolution } from "../types/subagents.js";
 
 export function formatPromptState(source: PromptResolution["source"]): string {
@@ -33,6 +34,7 @@ export function buildAgentStatusDetails(context: RuntimeResolutionContext): Agen
         agent: name,
         title: agent.title,
         shortName: agent.shortName,
+        executionPath: selectDispatchExecutionPath(name) === "resident" ? "resident runtime" : "legacy child-launch path",
         provider: runtime.provider,
         model: runtime.model,
         thinking: runtime.thinking,
@@ -54,6 +56,7 @@ export function buildAgentStatusSummary(details: AgentStatusMessageDetails): str
   for (const agent of details.agents) {
     const runtime = [agent.provider, agent.model, agent.thinking].filter(Boolean).join("/") || "pi defaults";
     lines.push(`- ${agent.title} (${agent.shortName})`);
+    lines.push(`  - execution: ${agent.executionPath}`);
     lines.push(`  - runtime: ${runtime}`);
     lines.push(`  - prompt: ${agent.promptState}`);
     if (agent.fallbackNote) {

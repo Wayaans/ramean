@@ -99,6 +99,14 @@ Notes:
 - If `.pi/ramean/config.yaml` is malformed, ramean warns and falls back to default project config behavior.
 - Legacy `parallel.max` fields are ignored silently.
 
+## Runtime note
+
+Current subagent execution state:
+
+- `agent`, `designer`, and `reviewer` use the resident runtime path by default
+- the earlier legacy child-launch path is no longer part of the active built-in subagent flow
+- the command and tool surface stays the same
+
 ## Commands
 
 - `/agent`
@@ -121,7 +129,7 @@ Notes:
   - optional args: `toggle`, `expand`, `collapse`, and `status`
   - state is session-local and resets on reload
 - `/agent:status`
-  - shows current runtime, prompt state, and whether the subagent extension is enabled
+  - shows current execution path, runtime, prompt state, and whether the subagent extension is enabled
 - `/tools:status`
   - shows available built-in and extension tools in current priority order
 - `/tools:compaction`

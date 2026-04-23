@@ -38,6 +38,7 @@ export function registerDispatchTool(pi: ExtensionAPI): void {
           requestedAgent: params.agent,
           task: params.task,
           context: ctx,
+          parentActiveTools: pi.getActiveTools(),
           signal,
           onUpdate: (partial) => {
             updateStandaloneDispatchWidget(ctx, widgetKey, partial);
