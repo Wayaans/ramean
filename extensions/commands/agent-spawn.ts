@@ -89,6 +89,7 @@ export function registerAgentSpawnCommand(pi: ExtensionAPI): void {
           requestedAgent,
           task,
           context: ctx,
+          parentActiveTools: pi.getActiveTools(),
           onUpdate: (partial) => {
             updateStandaloneDispatchWidget(ctx, widgetKey, partial);
           },

@@ -22,7 +22,14 @@ import {
   updateProjectSubagentEnabled,
 } from "../subagents/config.js";
 import { buildSubagentRulesBlock, upsertSubagentRules } from "../subagents/agents-md.js";
-import { buildDelegatedTask, formatDispatchProgress, getFinalOutput, validateDispatchTask } from "../subagents/spawn.js";
+import {
+  buildDelegatedTask,
+  buildDispatchActiveTools,
+  formatDispatchProgress,
+  getFinalOutput,
+  selectDispatchExecutionPath,
+  validateDispatchTask,
+} from "../subagents/spawn.js";
 import {
   isDispatchExpansionEnabled,
   parseDispatchExpansionAction,
@@ -384,8 +391,32 @@ test("final output concatenates all text parts from the last assistant message o
 
 test("subagent tool restrictions preserve explicit allowlists while removing forbidden tools", () => {
   assert.deepEqual(filterSubagentActiveTools(["read", "grep", "dispatch"], "agent"), ["read", "grep"]);
+  assert.deepEqual(
+    filterSubagentActiveTools(["read", "todo_write", "question", "questionnaire", "grep"], "agent"),
+    ["read", "grep"],
+  );
   assert.deepEqual(filterSubagentActiveTools(["read", "edit", "write", "bash"], "reviewer"), ["read", "bash"]);
   assert.deepEqual(filterSubagentActiveTools([], "reviewer"), []);
+});
+
+
+test("reviewer dispatch uses the resident execution path while other roles stay on the legacy path", () => {
+  assert.equal(selectDispatchExecutionPath("reviewer"), "resident");
+  assert.equal(selectDispatchExecutionPath("agent"), "legacy-child-launch");
+  assert.equal(selectDispatchExecutionPath("designer"), "legacy-child-launch");
+});
+
+
+test("resident dispatch active tools preserve parent intent while removing forbidden tools by role", () => {
+  assert.deepEqual(
+    buildDispatchActiveTools(["read", "bash", "dispatch", "todo_write", "question", "grep"], "reviewer"),
+    ["read", "bash", "grep"],
+  );
+  assert.deepEqual(
+    buildDispatchActiveTools(["read", "edit", "write", "dispatch", "questionnaire"], "agent"),
+    ["read", "edit", "write"],
+  );
+  assert.deepEqual(buildDispatchActiveTools(undefined, "reviewer"), ["read", "bash"]);
 });
 
 test("dispatch widget aggregates standalone dispatches", () => {

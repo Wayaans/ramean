@@ -95,6 +95,14 @@ Notes:
 - If `.pi/ramean/config.yaml` is malformed, ramean warns and falls back to default project config behavior.
 - Legacy `parallel.max` fields are ignored silently.
 
+## Runtime note
+
+Current subagent execution state:
+
+- `reviewer` uses the resident runtime path
+- `agent` and `designer` still use the legacy child-launch path until the remaining migration slices land
+- the command and tool surface stays the same
+
 ## Commands
 
 - `/agent`

@@ -52,6 +52,19 @@ Subagents should always be available to the main agent with clear instructions, 
 - `/agent:status`
   - show current subagent runtime, prompt state, and whether the extension is enabled
 
+## Runtime execution paths
+
+Current runtime state:
+
+- `reviewer` uses the **resident runtime** path
+- `agent` and `designer` still use the **legacy child-launch path** until later migration slices land
+- this changes the execution path only; it does not change the subagent product contract
+
+Terms:
+
+- **resident runtime**: subagent execution inside the already loaded runtime
+- **legacy child-launch path**: subagent execution through a separate child process
+
 ## System Prompt
 
 - Each subagent has a default system prompt in `extensions/subagents/prompts/`

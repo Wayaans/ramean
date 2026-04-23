@@ -3,13 +3,15 @@ import { isToolCallEventType } from "@mariozechner/pi-coding-agent";
 import { formatReadOnlyBashError, isReadOnlyBash, normalizeAgentName } from "../core/utils.js";
 import type { CanonicalAgentName } from "../types/subagents.js";
 
+const SHARED_FORBIDDEN_SUBAGENT_TOOLS = new Set(["dispatch", "todo_write", "question", "questionnaire"]);
+
 function getRoleFromEnv(): CanonicalAgentName | null {
   return normalizeAgentName(process.env.RAMEAN_SUBAGENT_ROLE ?? "agent");
 }
 
 export function filterSubagentActiveTools(activeTools: readonly string[], role: CanonicalAgentName): string[] {
   return activeTools.filter((name) => {
-    if (name === "dispatch") return false;
+    if (SHARED_FORBIDDEN_SUBAGENT_TOOLS.has(name)) return false;
     if (role === "reviewer" && (name === "edit" || name === "write")) return false;
     return true;
   });
@@ -28,13 +30,7 @@ function applyRoleToolRestrictions(pi: ExtensionAPI, role: CanonicalAgentName): 
   }
 }
 
-export function registerSubagentRuntime(pi: ExtensionAPI): boolean {
-  if (process.env.RAMEAN_SUBAGENT !== "1") {
-    return false;
-  }
-
-  const role = getRoleFromEnv() ?? "agent";
-
+export function registerRoleScopedSubagentRuntime(pi: ExtensionAPI, role: CanonicalAgentName): void {
   pi.on("session_start", async (_event, _ctx) => {
     applyRoleToolRestrictions(pi, role);
   });
@@ -67,6 +63,14 @@ export function registerSubagentRuntime(pi: ExtensionAPI): boolean {
       };
     }
   });
+}
 
+export function registerSubagentRuntime(pi: ExtensionAPI): boolean {
+  if (process.env.RAMEAN_SUBAGENT !== "1") {
+    return false;
+  }
+
+  const role = getRoleFromEnv() ?? "agent";
+  registerRoleScopedSubagentRuntime(pi, role);
   return true;
 }

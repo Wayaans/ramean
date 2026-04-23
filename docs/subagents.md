@@ -46,6 +46,19 @@ Reference for the ramean subagent extension.
   - if a task needs both implementation and review, dispatch `agent` or `designer` first, then dispatch `reviewer` as a separate pass
   - when the main agent needs multiple subagents, it should issue multiple top-level `dispatch` calls in parallel
 
+## Runtime execution paths
+
+Current runtime state:
+
+- `reviewer` dispatches use the **resident runtime** path
+- `agent` and `designer` dispatches still use the **legacy child-launch path** until the remaining migration slices land
+- the user-facing `dispatch` and `/agent:spawn` contract stays the same
+
+Terms:
+
+- **resident runtime** — the subagent runs inside the already loaded runtime
+- **legacy child-launch path** — the subagent runs through a separate child process
+
 ## Orchestration behavior
 
 There is no separate orchestration tool.

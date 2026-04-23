@@ -2,12 +2,21 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { Message } from "@mariozechner/pi-ai";
+import type { Message, Model } from "@mariozechner/pi-ai";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { withFileMutationQueue } from "@mariozechner/pi-coding-agent";
+import {
+  AuthStorage,
+  createAgentSession,
+  DefaultResourceLoader,
+  getAgentDir,
+  ModelRegistry,
+  SessionManager,
+  withFileMutationQueue,
+} from "@mariozechner/pi-coding-agent";
 import { getSubagent, validAgentHint } from "./agents.js";
 import { loadPromptResolution } from "./prompts.js";
 import { resolveEffectiveAgentRuntime } from "./runtime-config.js";
+import { filterSubagentActiveTools, registerRoleScopedSubagentRuntime } from "./runtime.js";
 import {
   basename,
   formatUsage,
@@ -15,7 +24,13 @@ import {
   shortenPath,
   summarizeText,
 } from "../core/utils.js";
-import type { CanonicalAgentName, DispatchDetails, DispatchUsage, TranscriptItem } from "../types/subagents.js";
+import type {
+  CanonicalAgentName,
+  DispatchDetails,
+  DispatchUsage,
+  ThinkingLevel,
+  TranscriptItem,
+} from "../types/subagents.js";
 import { RUNNING_STATUS_FRAMES } from "../UI/status.js";
 
 export interface ExecuteDispatchOptions {
@@ -23,9 +38,13 @@ export interface ExecuteDispatchOptions {
   requestedAgent: string;
   task: string;
   context: ExtensionContext;
+  parentActiveTools?: readonly string[];
   signal?: AbortSignal;
   onUpdate?: (details: DispatchDetails) => void;
 }
+
+let sharedAuthStorage: AuthStorage | null = null;
+let sharedModelRegistry: ModelRegistry | null = null;
 
 function emptyUsage(): DispatchUsage {
   return {
@@ -36,6 +55,19 @@ function emptyUsage(): DispatchUsage {
     cost: 0,
     contextTokens: 0,
     turns: 0,
+  };
+}
+
+function getSharedServices(): { authStorage: AuthStorage; modelRegistry: ModelRegistry } {
+  if (!sharedAuthStorage) {
+    sharedAuthStorage = AuthStorage.create();
+  }
+  if (!sharedModelRegistry) {
+    sharedModelRegistry = ModelRegistry.create(sharedAuthStorage);
+  }
+  return {
+    authStorage: sharedAuthStorage,
+    modelRegistry: sharedModelRegistry,
   };
 }
 
@@ -248,7 +280,7 @@ function resolveRequestedModel(
   context: ExtensionContext,
   agent: CanonicalAgentName,
   warnings: string[],
-): { modelArg?: string; thinkingArg?: string } {
+): { modelArg?: string; thinkingArg?: ThinkingLevel } {
   const resolved = resolveEffectiveAgentRuntime(context, agent);
   if (resolved.fallbackNote) {
     warnings.push(resolved.fallbackNote);
@@ -260,28 +292,245 @@ function resolveRequestedModel(
   };
 }
 
-export async function executeDispatch(options: ExecuteDispatchOptions): Promise<DispatchDetails> {
-  const agent = normalizeAgentName(options.requestedAgent);
-  if (!agent) {
-    const details = createBaseDetails("agent", options.task);
-    details.status = "failed";
-    details.error = `Unknown subagent: ${options.requestedAgent}. Valid options: ${validAgentHint()}.`;
-    details.output = details.error;
-    return details;
+function resolveModelForResidentRuntime(options: {
+  context: ExtensionContext;
+  agent: CanonicalAgentName;
+  warnings: string[];
+  modelRegistry: ModelRegistry;
+}): { model?: Model<any>; thinkingLevel?: ThinkingLevel } {
+  const resolved = resolveRequestedModel(options.context, options.agent, options.warnings);
+  if (!resolved.modelArg) {
+    return {
+      thinkingLevel: resolved.thinkingArg,
+    };
   }
 
-  const taskError = validateDispatchTask(agent, options.task);
-  const promptResolution = loadPromptResolution(options.cwd, agent);
-  const details = createBaseDetails(agent, options.task);
-  details.warnings.push(...promptResolution.warnings);
-
-  if (taskError) {
-    details.status = "failed";
-    details.error = taskError;
-    details.output = taskError;
-    return details;
+  const [provider, ...rest] = resolved.modelArg.split("/");
+  const modelId = rest.join("/");
+  if (!provider || !modelId) {
+    return {
+      thinkingLevel: resolved.thinkingArg,
+    };
   }
 
+  const model = options.modelRegistry.find(provider, modelId);
+  if (!model) {
+    options.warnings.push(`Resolved model ${resolved.modelArg} was not found in the resident runtime registry. Using pi defaults.`);
+    return {
+      thinkingLevel: resolved.thinkingArg,
+    };
+  }
+
+  return {
+    model,
+    thinkingLevel: resolved.thinkingArg,
+  };
+}
+
+export function buildDispatchActiveTools(parentActiveTools: readonly string[] | undefined, role: CanonicalAgentName): string[] {
+  const fallbackTools = ["read", "bash", "edit", "write"];
+  const activeTools = parentActiveTools && parentActiveTools.length > 0 ? [...parentActiveTools] : fallbackTools;
+  const filtered = filterSubagentActiveTools(activeTools, role);
+  return [...new Set(filtered)];
+}
+
+export function selectDispatchExecutionPath(agent: CanonicalAgentName): "resident" | "legacy-child-launch" {
+  return agent === "reviewer" ? "resident" : "legacy-child-launch";
+}
+
+function emitDispatchUpdate(
+  details: DispatchDetails,
+  messages: Message[],
+  partialAssistantMessage: Message | undefined,
+  liveToolProgress: string | undefined,
+  onUpdate?: (details: DispatchDetails) => void,
+): void {
+  details.output = getFinalOutput(messages) || getAssistantText(partialAssistantMessage) || details.output;
+  details.transcript = collectTranscript(messages);
+  details.streamlinedProgress = summarizeText(
+    liveToolProgress
+      || getAssistantText(partialAssistantMessage)
+      || getLatestTranscriptSummary(details)
+      || details.output
+      || "Starting subagent...",
+    120,
+  );
+  onUpdate?.(details);
+}
+
+async function executeResidentDispatch(
+  options: ExecuteDispatchOptions,
+  agent: CanonicalAgentName,
+  details: DispatchDetails,
+  prompt: string,
+): Promise<DispatchDetails> {
+  const { authStorage, modelRegistry } = getSharedServices();
+  const agentDir = getAgentDir();
+  const resolvedModel = resolveModelForResidentRuntime({
+    context: options.context,
+    agent,
+    warnings: details.warnings,
+    modelRegistry,
+  });
+  const activeTools = buildDispatchActiveTools(options.parentActiveTools, agent);
+  const appendPrompt = prompt.trim();
+
+  const loader = new DefaultResourceLoader({
+    cwd: options.cwd,
+    agentDir,
+    extensionFactories: [
+      (pi) => {
+        registerRoleScopedSubagentRuntime(pi, agent);
+      },
+    ],
+    appendSystemPromptOverride: (base) => {
+      if (!appendPrompt) return base;
+      return [...base, appendPrompt];
+    },
+  });
+  await loader.reload();
+
+  const { session } = await createAgentSession({
+    cwd: options.cwd,
+    agentDir,
+    authStorage,
+    modelRegistry,
+    resourceLoader: loader,
+    sessionManager: SessionManager.inMemory(options.cwd),
+    model: resolvedModel.model,
+    thinkingLevel: resolvedModel.thinkingLevel,
+  });
+  session.setActiveToolsByName(activeTools);
+
+  let spinnerTimer: ReturnType<typeof setInterval> | null = null;
+  const messages: Message[] = [];
+  let partialAssistantMessage: Message | undefined;
+  let liveToolProgress: string | undefined;
+  let aborted = false;
+
+  const emitUpdate = () => {
+    emitDispatchUpdate(details, messages, partialAssistantMessage, liveToolProgress, options.onUpdate);
+  };
+
+  const unsubscribe = session.subscribe((event) => {
+    if (event.type === "message_update") {
+      const message = event.message as Message;
+      if (message.role === "assistant") {
+        partialAssistantMessage = message;
+        emitUpdate();
+      }
+      return;
+    }
+
+    if (event.type === "tool_execution_start") {
+      liveToolProgress = formatToolCall(String(event.toolName ?? "tool"), (event.args as Record<string, unknown> | undefined) ?? {});
+      emitUpdate();
+      return;
+    }
+
+    if (event.type === "tool_execution_update") {
+      const toolName = String(event.toolName ?? "tool");
+      const args = (event.args as Record<string, unknown> | undefined) ?? {};
+      const partialResult = event.partialResult as { content?: Array<{ type?: string; text?: string }> } | undefined;
+      const partialText = partialResult?.content
+        ?.filter((part) => part?.type === "text" && typeof part.text === "string")
+        .map((part) => part.text)
+        .join("\n")
+        .trim();
+      liveToolProgress = partialText
+        ? `${formatToolCall(toolName, args)} — ${summarizeText(partialText, 80)}`
+        : formatToolCall(toolName, args);
+      emitUpdate();
+      return;
+    }
+
+    if (event.type === "tool_execution_end") {
+      emitUpdate();
+      return;
+    }
+
+    if (event.type === "message_end") {
+      const message = event.message as Message;
+      messages.push(message);
+      if (message.role === "assistant") {
+        partialAssistantMessage = undefined;
+        accumulateUsage(details.usage, message);
+        if (!details.model && message.model) {
+          details.model = message.model;
+        }
+        if (message.stopReason) {
+          details.stopReason = message.stopReason;
+        }
+        liveToolProgress = undefined;
+      } else if (message.role === "toolResult") {
+        liveToolProgress = summarizeToolResult(message) ?? liveToolProgress;
+      }
+      emitUpdate();
+    }
+  });
+
+  const abortSession = () => {
+    aborted = true;
+    void session.abort();
+  };
+
+  try {
+    emitUpdate();
+    spinnerTimer = setInterval(() => {
+      details.spinnerFrame = (details.spinnerFrame + 1) % RUNNING_STATUS_FRAMES.length;
+      emitUpdate();
+    }, 120);
+
+    if (options.signal?.aborted) {
+      abortSession();
+    } else {
+      options.signal?.addEventListener("abort", abortSession, { once: true });
+    }
+
+    await session.prompt(buildDelegatedTask(agent, options.task));
+  } catch (error) {
+    if (aborted || options.signal?.aborted) {
+      details.stopReason = "aborted";
+      details.error = "Subagent aborted.";
+    } else {
+      details.stopReason = "error";
+      details.error = error instanceof Error ? error.message : String(error);
+    }
+  } finally {
+    options.signal?.removeEventListener("abort", abortSession);
+    unsubscribe();
+    if (spinnerTimer) {
+      clearInterval(spinnerTimer);
+    }
+    session.dispose();
+  }
+
+  details.exitCode = details.error ? 1 : 0;
+  details.output = getFinalOutput(messages) || details.output;
+  details.transcript = collectTranscript(messages);
+  details.streamlinedProgress = formatDispatchSummary(details);
+
+  if (details.transcript.length === 0 && details.output === "" && details.error === undefined) {
+    details.output = "No output returned from subagent.";
+  }
+
+  if (details.exitCode !== 0 || details.stopReason === "error" || details.stopReason === "aborted") {
+    details.status = "failed";
+    details.error = details.error ?? (details.output || `Subagent exited with code ${details.exitCode}.`);
+  } else {
+    details.status = "success";
+  }
+
+  options.onUpdate?.(details);
+  return details;
+}
+
+async function executeLegacyDispatch(
+  options: ExecuteDispatchOptions,
+  agent: CanonicalAgentName,
+  details: DispatchDetails,
+  prompt: string,
+): Promise<DispatchDetails> {
   const args: string[] = ["--mode", "json", "-p", "--no-session"];
   const resolvedModel = resolveRequestedModel(options.context, agent, details.warnings);
   if (resolvedModel.modelArg) args.push("--model", resolvedModel.modelArg);
@@ -295,17 +544,7 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
   let liveToolProgress: string | undefined;
 
   const emitUpdate = () => {
-    details.output = getFinalOutput(messages) || getAssistantText(partialAssistantMessage) || details.output;
-    details.transcript = collectTranscript(messages);
-    details.streamlinedProgress = summarizeText(
-      liveToolProgress
-        || getAssistantText(partialAssistantMessage)
-        || getLatestTranscriptSummary(details)
-        || details.output
-        || "Starting subagent...",
-      120,
-    );
-    options.onUpdate?.(details);
+    emitDispatchUpdate(details, messages, partialAssistantMessage, liveToolProgress, options.onUpdate);
   };
 
   try {
@@ -315,8 +554,8 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
       emitUpdate();
     }, 120);
 
-    if (promptResolution.prompt.trim()) {
-      const temp = await writePromptToTempFile(agent, promptResolution.prompt);
+    if (prompt.trim()) {
+      const temp = await writePromptToTempFile(agent, prompt);
       tempPromptDir = temp.dir;
       tempPromptPath = temp.filePath;
       args.push("--append-system-prompt", tempPromptPath);
@@ -367,7 +606,7 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
 
         if (event.type === "tool_execution_update") {
           const toolName = String(event.toolName ?? "tool");
-          const args = (event.args as Record<string, unknown> | undefined) ?? {};
+          const toolArgs = (event.args as Record<string, unknown> | undefined) ?? {};
           const partialResult = event.partialResult as { content?: Array<{ type?: string; text?: string }> } | undefined;
           const partialText = partialResult?.content
             ?.filter((part) => part?.type === "text" && typeof part.text === "string")
@@ -375,8 +614,8 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
             .join("\n")
             .trim();
           liveToolProgress = partialText
-            ? `${formatToolCall(toolName, args)} — ${summarizeText(partialText, 80)}`
-            : formatToolCall(toolName, args);
+            ? `${formatToolCall(toolName, toolArgs)} — ${summarizeText(partialText, 80)}`
+            : formatToolCall(toolName, toolArgs);
           emitUpdate();
           return;
         }
@@ -496,6 +735,35 @@ export async function executeDispatch(options: ExecuteDispatchOptions): Promise<
       }
     }
   }
+}
+
+export async function executeDispatch(options: ExecuteDispatchOptions): Promise<DispatchDetails> {
+  const agent = normalizeAgentName(options.requestedAgent);
+  if (!agent) {
+    const details = createBaseDetails("agent", options.task);
+    details.status = "failed";
+    details.error = `Unknown subagent: ${options.requestedAgent}. Valid options: ${validAgentHint()}.`;
+    details.output = details.error;
+    return details;
+  }
+
+  const taskError = validateDispatchTask(agent, options.task);
+  const promptResolution = loadPromptResolution(options.cwd, agent);
+  const details = createBaseDetails(agent, options.task);
+  details.warnings.push(...promptResolution.warnings);
+
+  if (taskError) {
+    details.status = "failed";
+    details.error = taskError;
+    details.output = taskError;
+    return details;
+  }
+
+  if (selectDispatchExecutionPath(agent) === "resident") {
+    return executeResidentDispatch(options, agent, details, promptResolution.prompt);
+  }
+
+  return executeLegacyDispatch(options, agent, details, promptResolution.prompt);
 }
 
 export function formatDispatchSummary(details: DispatchDetails): string {
