@@ -11,6 +11,7 @@ import { registerGuardrailsGitCommand } from "./commands/guardrails-git.js";
 import { registerToolsCompactionCommand } from "./commands/tools-compaction.js";
 import { registerToolsStatusCommand } from "./commands/tools-status.js";
 import { loadMergedOptionalExtensionsState } from "./others/config.js";
+import { registerFooterBadgesExtension } from "./others/footer-badges.js";
 import { registerGitGuardrailsExtension } from "./others/git-guardrails.js";
 import { registerHandoffCommand } from "./others/handoff.js";
 import { registerMinimalModeExtension } from "./others/minimal-mode.js";
@@ -58,6 +59,9 @@ export default function rameanExtensionPack(pi: ExtensionAPI, context?: Extensio
   const optionalExtensions = loadMergedOptionalExtensionsState(cwd);
   if (optionalExtensions.minimalMode) {
     registerMinimalModeExtension(pi);
+  }
+  if (optionalExtensions.footerBadges) {
+    registerFooterBadgesExtension(pi);
   }
   if (optionalExtensions.handoff) {
     registerHandoffCommand(pi);

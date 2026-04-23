@@ -35,5 +35,8 @@
 - extension: minimal-mode
   enabled: true
 
+- extension: footer-badges
+  enabled: true
+
 - extension: git-guardrails
   enabled: false

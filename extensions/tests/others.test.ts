@@ -14,6 +14,7 @@ test("optional extensions default to enabled", () => {
     handoff: true,
     notify: true,
     minimalMode: true,
+    footerBadges: true,
   });
 });
 
@@ -26,6 +27,7 @@ test("optional extensions merge project overrides", () => {
       { extension: "handoff", enabled: false },
       { extension: "notify", enabled: false },
       { extension: "minimal-mode", enabled: true },
+      { extension: "footer-badges", enabled: false },
     ]),
     "utf-8",
   );
@@ -35,6 +37,7 @@ test("optional extensions merge project overrides", () => {
     handoff: false,
     notify: false,
     minimalMode: true,
+    footerBadges: false,
   });
 });
 
@@ -49,6 +52,19 @@ test("optional extensions accept minimal_mode alias", () => {
 
   const config = loadMergedOptionalExtensionsState(cwd);
   assert.equal(config.minimalMode, false);
+});
+
+test("optional extensions accept footer aliases", () => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "ramean-others-footer-alias-"));
+  fs.mkdirSync(path.join(cwd, ".pi", "ramean"), { recursive: true });
+  fs.writeFileSync(
+    path.join(cwd, ".pi", "ramean", "config.yaml"),
+    stringify({ footerRedesign: false }),
+    "utf-8",
+  );
+
+  const config = loadMergedOptionalExtensionsState(cwd);
+  assert.equal(config.footerBadges, false);
 });
 
 test("optional extensions support legacy object-shaped config", () => {
@@ -69,5 +85,6 @@ test("optional extensions support legacy object-shaped config", () => {
     handoff: false,
     notify: false,
     minimalMode: false,
+    footerBadges: true,
   });
 });

@@ -75,6 +75,9 @@ Default and project config support docs-style extension entries:
 - extension: minimal-mode
   enabled: true
 
+- extension: footer-badges
+  enabled: true
+
 - extension: git-guardrails
   enabled: false
 ```
@@ -88,6 +91,7 @@ Notes:
 - the `handoff` extension entry with `enabled: false` disables `/handoff`.
 - the `notify` extension entry with `enabled: false` disables terminal-ready notifications.
 - the `minimal-mode` extension entry with `enabled: false` restores normal tool display behavior.
+- the `footer-badges` extension entry with `enabled: false` restores Pi's built-in footer.
 - the `git-guardrails` extension entry is disabled by default; when enabled, it blocks common dangerous git bash commands such as `git push` and `git reset --hard` using a pattern-based guard list.
 - If a configured subagent model is unavailable, the subagent inherits the active main-agent model with `low` thinking.
 - Legacy compact config shapes are still accepted for backward compatibility.
@@ -178,6 +182,10 @@ Notes:
   - sends a terminal notification when the main agent is ready for input
 - `minimal-mode`
   - enables compact tool rendering for most tools without changing `write` or `edit`
+- `footer-badges`
+  - replaces Pi's built-in interactive footer with compact badges
+  - shows working directory and git branch separately
+  - shows context, accumulated assistant usage, provider, model, and thinking level
 - `git-guardrails`
   - disabled by default
   - blocks common dangerous git bash commands such as `git push`, `git reset --hard`, `git clean -f`, and `git branch -D`
@@ -189,5 +197,6 @@ Notes:
 - `Ctrl+Shift+O` toggles dispatch-only expansion for subagent dispatch cards without changing other tool output
 - dispatch-only expansion state is session-local and resets on reload
 - running indicators animate with braille spinner frames
+- footer-badges uses a session-safe footer renderer that survives reload and resume flows by refreshing plain snapshot state instead of reading stale session-bound objects during render
 - concurrent standalone dispatches share one above-editor widget
 - when that widget is active, ramean swaps the normal streaming working indicator to a matching animated dispatch spinner

@@ -7,6 +7,7 @@ interface ExtractedOptionalExtensionsConfig {
   handoff?: boolean;
   notify?: boolean;
   minimalMode?: boolean;
+  footerBadges?: boolean;
 }
 
 export function emptyOptionalExtensionsState(): OptionalExtensionsState {
@@ -14,6 +15,7 @@ export function emptyOptionalExtensionsState(): OptionalExtensionsState {
     handoff: true,
     notify: true,
     minimalMode: true,
+    footerBadges: true,
   };
 }
 
@@ -27,6 +29,14 @@ function normalizeOptionalExtensionName(value: unknown): OptionalExtensionName |
   if (normalized === "handoff") return "handoff";
   if (normalized === "notify") return "notify";
   if (normalized === "minimal-mode" || normalized === "minimal_mode") return "minimal-mode";
+  if (
+    normalized === "footer-badges" ||
+    normalized === "footer_badges" ||
+    normalized === "footer" ||
+    normalized === "footer-redesign"
+  ) {
+    return "footer-badges";
+  }
   return null;
 }
 
@@ -39,6 +49,7 @@ function setExtensionEnabled(
   if (extension === "handoff") state.handoff = enabled;
   if (extension === "notify") state.notify = enabled;
   if (extension === "minimal-mode") state.minimalMode = enabled;
+  if (extension === "footer-badges") state.footerBadges = enabled;
 }
 
 function normalizeNestedOptionalExtension(value: unknown): boolean | undefined {
@@ -74,6 +85,17 @@ function extractOptionalExtensionsConfig(document: unknown): ExtractedOptionalEx
     "minimal-mode",
     normalizeNestedOptionalExtension(document["minimal-mode"] ?? document.minimal_mode ?? document.minimalMode),
   );
+  setExtensionEnabled(
+    result,
+    "footer-badges",
+    normalizeNestedOptionalExtension(
+      document["footer-badges"] ??
+        document.footer_badges ??
+        document.footerBadges ??
+        document.footer ??
+        document.footerRedesign,
+    ),
+  );
 
   return result;
 }
@@ -86,6 +108,7 @@ function mergeOptionalExtensionsState(
     handoff: override.handoff ?? base.handoff,
     notify: override.notify ?? base.notify,
     minimalMode: override.minimalMode ?? base.minimalMode,
+    footerBadges: override.footerBadges ?? base.footerBadges,
   };
 }
 

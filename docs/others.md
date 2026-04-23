@@ -74,6 +74,29 @@ Config entry:
 
 If disabled, ramean keeps the normal tool display behavior.
 
+## Footer badges
+
+Behavior:
+
+- replaces Pi's default interactive footer with compact badges
+- shows the current working directory and git branch as separate badges
+- shows context usage, accumulated assistant token totals, and accumulated assistant cost
+- shows provider, model, and current thinking level when the selected model exposes reasoning
+- keeps extension status messages on a separate line only when they fit
+- uses Pi's current session lifecycle correctly:
+  - installs on `session_start`
+  - clears itself on `session_shutdown`
+  - avoids stale captured session objects during reload, resume, and other replacement flows
+
+Config entry:
+
+```yaml
+- extension: footer-badges
+  enabled: true
+```
+
+If disabled, ramean keeps Pi's built-in footer.
+
 ## Git guardrails
 
 Command:
