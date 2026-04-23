@@ -56,8 +56,8 @@ Subagents should always be available to the main agent with clear instructions, 
 
 Current runtime state:
 
-- `reviewer` uses the **resident runtime** path
-- `agent` and `designer` still use the **legacy child-launch path** until later migration slices land
+- `reviewer` and `agent` use the **resident runtime** path
+- `designer` still uses the **legacy child-launch path** until later migration slices land
 - this changes the execution path only; it does not change the subagent product contract
 
 Terms:

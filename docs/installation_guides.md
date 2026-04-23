@@ -99,8 +99,8 @@ Notes:
 
 Current subagent execution state:
 
-- `reviewer` uses the resident runtime path
-- `agent` and `designer` still use the legacy child-launch path until the remaining migration slices land
+- `reviewer` and `agent` use the resident runtime path
+- `designer` still uses the legacy child-launch path until the remaining migration slices land
 - the command and tool surface stays the same
 
 ## Commands

@@ -400,9 +400,9 @@ test("subagent tool restrictions preserve explicit allowlists while removing for
 });
 
 
-test("reviewer dispatch uses the resident execution path while other roles stay on the legacy path", () => {
+test("reviewer and agent dispatch use the resident execution path while designer stays on the legacy path", () => {
   assert.equal(selectDispatchExecutionPath("reviewer"), "resident");
-  assert.equal(selectDispatchExecutionPath("agent"), "legacy-child-launch");
+  assert.equal(selectDispatchExecutionPath("agent"), "resident");
   assert.equal(selectDispatchExecutionPath("designer"), "legacy-child-launch");
 });
 

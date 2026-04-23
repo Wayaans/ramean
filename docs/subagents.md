@@ -50,8 +50,8 @@ Reference for the ramean subagent extension.
 
 Current runtime state:
 
-- `reviewer` dispatches use the **resident runtime** path
-- `agent` and `designer` dispatches still use the **legacy child-launch path** until the remaining migration slices land
+- `reviewer` and `agent` dispatches use the **resident runtime** path
+- `designer` dispatches still use the **legacy child-launch path** until the remaining migration slices land
 - the user-facing `dispatch` and `/agent:spawn` contract stays the same
 
 Terms:

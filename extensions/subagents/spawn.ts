@@ -335,7 +335,7 @@ export function buildDispatchActiveTools(parentActiveTools: readonly string[] | 
 }
 
 export function selectDispatchExecutionPath(agent: CanonicalAgentName): "resident" | "legacy-child-launch" {
-  return agent === "reviewer" ? "resident" : "legacy-child-launch";
+  return agent === "designer" ? "legacy-child-launch" : "resident";
 }
 
 function emitDispatchUpdate(
