@@ -1,37 +1,16 @@
 import type { AutocompleteItem } from "@mariozechner/pi-tui";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { createDispatchMessage } from "../UI/renderers.js";
-import type { DispatchDetails } from "../types/subagents.js";
-import { parseSpawnArgs } from "../core/utils.js";
-import { executeDispatch } from "../subagents/spawn.js";
-import { clearStandaloneDispatchWidget, updateStandaloneDispatchWidget } from "../subagents/standalone-widget.js";
-import { getSubagent, listSubagentNames } from "../subagents/agents.js";
+import { normalizeAgentName, parseSpawnArgs } from "../core/utils.js";
+import { getSubagent, listSubagentNames, validAgentHint } from "../subagents/agents.js";
+import type { CanonicalAgentName } from "../types/subagents.js";
 
-function createPendingDispatchMessage(agentName: string, task: string): DispatchDetails {
-  const agent = getSubagent(agentName) ?? getSubagent("agent")!;
-  return {
-    agent: agent.name,
-    title: agent.title,
-    shortName: agent.shortName,
-    icon: agent.icon,
-    task,
-    status: "running",
-    spinnerFrame: 0,
-    output: "",
-    streamlinedProgress: "Starting subagent...",
-    warnings: [],
-    exitCode: 0,
-    usage: {
-      input: 0,
-      output: 0,
-      cacheRead: 0,
-      cacheWrite: 0,
-      cost: 0,
-      contextTokens: 0,
-      turns: 0,
-    },
-    transcript: [],
-  };
+export function buildAgentSpawnPrompt(agent: CanonicalAgentName, task: string): string {
+  return [
+    `[ramean /agent:spawn] Run sub-agent \`${agent}\` with the following task: ${JSON.stringify(task)}`,
+    "Call the `dispatch` tool immediately with exactly that `agent` and `task`.",
+    "Do not use any other tool first.",
+    "Do not answer directly.",
+  ].join("\n");
 }
 
 function getArgumentCompletions(prefix: string): AutocompleteItem[] | null {
@@ -52,7 +31,7 @@ function getArgumentCompletions(prefix: string): AutocompleteItem[] | null {
 
 export function registerAgentSpawnCommand(pi: ExtensionAPI): void {
   pi.registerCommand("agent:spawn", {
-    description: "Dispatch a task directly to a subagent without invoking the main agent",
+    description: "Queue a real dispatch tool call from an interactive subagent picker",
     getArgumentCompletions: getArgumentCompletions,
     handler: async (args, ctx) => {
       const parsed = parseSpawnArgs(args);
@@ -80,26 +59,20 @@ export function registerAgentSpawnCommand(pi: ExtensionAPI): void {
         return;
       }
 
-      const widgetKey = `spawn:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
-      updateStandaloneDispatchWidget(ctx, widgetKey, createPendingDispatchMessage(requestedAgent, task));
-
-      try {
-        const details = await executeDispatch({
-          cwd: ctx.cwd,
-          requestedAgent,
-          task,
-          context: ctx,
-          parentActiveTools: pi.getActiveTools(),
-          signal: ctx.signal,
-          onUpdate: (partial) => {
-            updateStandaloneDispatchWidget(ctx, widgetKey, partial);
-          },
-        });
-
-        pi.sendMessage(createDispatchMessage(details));
-      } finally {
-        clearStandaloneDispatchWidget(ctx, widgetKey);
+      const agent = normalizeAgentName(requestedAgent);
+      if (!agent) {
+        ctx.ui.notify(`Unknown subagent: ${requestedAgent}. Valid options: ${validAgentHint()}.`, "warning");
+        return;
       }
+
+      const content = buildAgentSpawnPrompt(agent, task);
+      if (ctx.isIdle()) {
+        pi.sendUserMessage(content);
+        return;
+      }
+
+      pi.sendUserMessage(content, { deliverAs: "followUp" });
+      ctx.ui.notify("Queued /agent:spawn as a follow-up dispatch request.", "info");
     },
   });
 }

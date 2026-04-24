@@ -4,7 +4,7 @@ import { getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import { getSubagent } from "../subagents/agents.js";
 import { isDispatchExpansionEnabled } from "../subagents/dispatch-expansion.js";
 import { buildAgentStatusSummary } from "../subagents/status.js";
-import { formatDispatchProgress, formatDispatchSummary } from "../subagents/spawn.js";
+import { buildWarningSummary, formatDispatchProgress, formatDispatchSummary } from "../subagents/spawn.js";
 import { buildToolsStatusSummary } from "../tools/status.js";
 import { summarizeText, titleCase } from "../core/utils.js";
 import type {
@@ -85,6 +85,11 @@ export function formatDispatchTaskPreview(task: string): string {
   return summarizeText(task.replace(/\s+/g, " ").trim(), 140);
 }
 
+function formatExpandedDispatchTask(task: string): string {
+  const normalized = task.replace(/\r\n/g, "\n").trim();
+  return normalized || "(empty task)";
+}
+
 function createCollapsedDispatchLines(details: DispatchDetails, theme: any): string[] {
   const lines: string[] = [];
   lines.push(
@@ -102,6 +107,7 @@ function createCollapsedDispatchLines(details: DispatchDetails, theme: any): str
 
 function createExpandedDispatchComponent(details: DispatchDetails, theme: any) {
   const container = new Container();
+  const warningSummary = buildWarningSummary(details);
   container.addChild(
     new Text(
       `${renderStatusIcon(theme, details.status, details.spinnerFrame)} ${theme.fg("toolTitle", details.title)} ${theme.fg("muted", "⟩")} ${formatDispatchTaskPreview(details.task)}`,
@@ -113,16 +119,20 @@ function createExpandedDispatchComponent(details: DispatchDetails, theme: any) {
   container.addChild(new Text(theme.fg("dim", `└╍ ${details.status === "running" ? formatDispatchProgress(details) : formatDispatchSummary(details)}`), 0, 0));
   container.addChild(new Spacer(1));
   container.addChild(new Text(theme.fg("accent", "❯ TASK :"), 0, 0));
-  container.addChild(new Text(details.task, 0, 0));
+  container.addChild(new Text(formatExpandedDispatchTask(details.task), 0, 0));
+
+  if (details.status === "running") {
+    return container;
+  }
+
   container.addChild(new Spacer(1));
   container.addChild(new Text(theme.fg("accent", "❯ OUTPUT :"), 0, 0));
   container.addChild(new Markdown(details.output || "(no output)", 0, 0, getMarkdownTheme()));
 
-  if (details.warnings.length > 0 || details.error) {
+  if (warningSummary) {
     container.addChild(new Spacer(1));
     container.addChild(new Text(theme.fg("warning", "❯ WARNING/ERROR :"), 0, 0));
-    const text = [details.error, ...details.warnings].filter(Boolean).join("\n");
-    container.addChild(new Text(text, 0, 0));
+    container.addChild(new Text(warningSummary, 0, 0));
   }
 
   return container;
@@ -297,6 +307,7 @@ export function renderDispatchResult(
         output: "",
         streamlinedProgress: "Starting subagent...",
         warnings: [],
+        toolFailures: [],
         exitCode: 0,
         usage: {
           input: 0,

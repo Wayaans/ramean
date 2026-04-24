@@ -122,6 +122,8 @@ Current subagent execution state:
   - supports `/agent:insert top` and `/agent:insert bottom`
 - `/agent:prompt`
 - `/agent:spawn`
+  - can prompt for the subagent and task interactively
+  - queues a real `dispatch` tool call so live progress appears in messages
   - shows temporary live status above the editor while the subagent runs
   - final rendered output shows the final response without transcript history
 - `/agent:expand`
@@ -204,7 +206,9 @@ Notes:
 - completed dispatch cards keep the neutral tool background and add a left success/error accent instead of a full-card success/error fill
 - `Ctrl+Shift+O` toggles dispatch-only expansion for subagent dispatch cards without changing other tool output
 - dispatch-only expansion state is session-local and resets on reload
-- running indicators animate with braille spinner frames
+- the shared dispatch working indicator animates with braille spinner frames, while running dispatch cards refresh on meaningful progress changes instead of every spinner tick
+- expanded dispatch cards show the full delegated task text; while running they still hide output and warning/error sections until completion
+- warning/error sections summarize final surfaced issues instead of listing every recoverable internal tool retry
 - footer-badges uses a session-safe footer renderer that survives reload and resume flows by refreshing plain snapshot state instead of reading stale session-bound objects during render
 - concurrent standalone dispatches share one above-editor widget
 - when that widget is active, ramean swaps the normal streaming working indicator to a matching animated dispatch spinner

@@ -26,7 +26,6 @@ import type {
   ThinkingLevel,
   TranscriptItem,
 } from "../types/subagents.js";
-import { RUNNING_STATUS_FRAMES } from "../UI/status.js";
 
 export interface ExecuteDispatchOptions {
   cwd: string;
@@ -87,6 +86,19 @@ function getAssistantText(message: Message | undefined): string {
     .join("");
 }
 
+function getAssistantToolCallSummary(message: Message | undefined): string | undefined {
+  if (!message || message.role !== "assistant") return undefined;
+
+  for (let index = message.content.length - 1; index >= 0; index -= 1) {
+    const part = message.content[index];
+    if (part?.type === "toolCall") {
+      return formatToolCall(part.name, part.arguments);
+    }
+  }
+
+  return undefined;
+}
+
 function collectTranscript(messages: Message[]): TranscriptItem[] {
   const transcript: TranscriptItem[] = [];
 
@@ -139,14 +151,24 @@ function formatToolCall(name: string, args: Record<string, unknown>): string {
   return `${name} ${summarizeText(JSON.stringify(args), 80)}`;
 }
 
-function getLatestTranscriptSummary(details: DispatchDetails): string | undefined {
-  const item = details.transcript[details.transcript.length - 1];
-  if (!item) return undefined;
-  if (item.type === "text") {
-    const text = summarizeText(item.text, 120).trim();
-    return text || undefined;
+function getLatestTranscriptToolCallSummary(details: DispatchDetails): string | undefined {
+  for (let index = details.transcript.length - 1; index >= 0; index -= 1) {
+    const item = details.transcript[index];
+    if (item?.type === "toolCall") {
+      return formatToolCall(item.name, item.args);
+    }
   }
-  return formatToolCall(item.name, item.args);
+  return undefined;
+}
+
+function getLatestTranscriptTextSummary(details: DispatchDetails): string | undefined {
+  for (let index = details.transcript.length - 1; index >= 0; index -= 1) {
+    const item = details.transcript[index];
+    if (item?.type !== "text") continue;
+    const text = summarizeText(item.text, 120).trim();
+    if (text) return text;
+  }
+  return undefined;
 }
 
 function summarizeToolResult(
@@ -165,10 +187,39 @@ function summarizeToolResult(
   return text ? summarizeText(text, 120) : undefined;
 }
 
+function isNoisyToolSnippet(text: string | undefined): boolean {
+  if (!text) return true;
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+  if (trimmed.includes("\n")) return true;
+  if (trimmed.length > 80) return true;
+  if (/^[\[{]/.test(trimmed)) return true;
+  return false;
+}
+
+function formatToolProgress(
+  name: string,
+  args: Record<string, unknown>,
+  snippet?: string,
+  status: "running" | "success" | "error" = "running",
+): string {
+  const base = formatToolCall(name, args);
+  if (status === "error") {
+    return `${base} — error`;
+  }
+
+  if (isNoisyToolSnippet(snippet)) {
+    return status === "success" ? `${base} — done` : base;
+  }
+
+  return `${base} — ${summarizeText(snippet?.trim() ?? "", 80)}`;
+}
+
 export function formatDispatchProgress(details: DispatchDetails): string {
   return summarizeText(
     details.streamlinedProgress
-      || getLatestTranscriptSummary(details)
+      || getLatestTranscriptToolCallSummary(details)
+      || getLatestTranscriptTextSummary(details)
       || details.output
       || `${details.title} is working...`,
     120,
@@ -188,6 +239,7 @@ function createBaseDetails(agent: CanonicalAgentName, task: string): DispatchDet
     output: "",
     streamlinedProgress: "Starting subagent...",
     warnings: [],
+    toolFailures: [],
     exitCode: 0,
     usage: emptyUsage(),
     transcript: [],
@@ -325,8 +377,10 @@ function emitDispatchUpdate(
   details.transcript = collectTranscript(messages);
   details.streamlinedProgress = summarizeText(
     liveToolProgress
-      || getAssistantText(partialAssistantMessage)
-      || getLatestTranscriptSummary(details)
+      || getAssistantToolCallSummary(partialAssistantMessage)
+      || getLatestTranscriptToolCallSummary(details)
+      || summarizeText(getAssistantText(partialAssistantMessage), 120).trim()
+      || getLatestTranscriptTextSummary(details)
       || details.output
       || "Starting subagent...",
     120,
@@ -378,10 +432,10 @@ async function executeResidentDispatch(
   });
   session.setActiveToolsByName(activeTools);
 
-  let spinnerTimer: ReturnType<typeof setInterval> | null = null;
   const messages: Message[] = [];
   let partialAssistantMessage: Message | undefined;
   let liveToolProgress: string | undefined;
+  let activeToolCall: { name: string; args: Record<string, unknown> } | undefined;
   let aborted = false;
 
   const emitUpdate = () => {
@@ -399,7 +453,10 @@ async function executeResidentDispatch(
     }
 
     if (event.type === "tool_execution_start") {
-      liveToolProgress = formatToolCall(String(event.toolName ?? "tool"), (event.args as Record<string, unknown> | undefined) ?? {});
+      const toolName = String(event.toolName ?? "tool");
+      const args = (event.args as Record<string, unknown> | undefined) ?? {};
+      activeToolCall = { name: toolName, args };
+      liveToolProgress = formatToolProgress(toolName, args);
       emitUpdate();
       return;
     }
@@ -407,25 +464,29 @@ async function executeResidentDispatch(
     if (event.type === "tool_execution_update") {
       const toolName = String(event.toolName ?? "tool");
       const args = (event.args as Record<string, unknown> | undefined) ?? {};
+      activeToolCall = { name: toolName, args };
       const partialResult = event.partialResult as { content?: Array<{ type?: string; text?: string }> } | undefined;
       const partialText = partialResult?.content
         ?.filter((part) => part?.type === "text" && typeof part.text === "string")
         .map((part) => part.text)
         .join("\n")
         .trim();
-      liveToolProgress = partialText
-        ? `${formatToolCall(toolName, args)} — ${summarizeText(partialText, 80)}`
-        : formatToolCall(toolName, args);
+      liveToolProgress = formatToolProgress(toolName, args, partialText);
       emitUpdate();
       return;
     }
 
     if (event.type === "tool_execution_end") {
-      liveToolProgress = summarizeToolResult(event.result as { content?: Array<{ type?: string; text?: string }> } | undefined)
-        ?? liveToolProgress;
+      const toolName = String(event.toolName ?? activeToolCall?.name ?? "tool");
+      const args = activeToolCall?.name === toolName ? activeToolCall.args : {};
+      const resultSummary = summarizeToolResult(event.result as { content?: Array<{ type?: string; text?: string }> } | undefined);
       if (event.isError) {
-        details.warnings.push(`${event.toolName} reported an error.`);
+        details.toolFailures.push(toolName);
+        liveToolProgress = formatToolProgress(toolName, args, resultSummary, "error");
+      } else {
+        liveToolProgress = formatToolProgress(toolName, args, resultSummary, "success");
       }
+      activeToolCall = undefined;
       emitUpdate();
       return;
     }
@@ -443,8 +504,6 @@ async function executeResidentDispatch(
           details.stopReason = message.stopReason;
         }
         liveToolProgress = undefined;
-      } else if (message.role === "toolResult") {
-        liveToolProgress = summarizeToolResult(message) ?? liveToolProgress;
       }
       emitUpdate();
     }
@@ -457,10 +516,6 @@ async function executeResidentDispatch(
 
   try {
     emitUpdate();
-    spinnerTimer = setInterval(() => {
-      details.spinnerFrame = (details.spinnerFrame + 1) % RUNNING_STATUS_FRAMES.length;
-      emitUpdate();
-    }, 120);
 
     if (options.signal?.aborted) {
       abortSession();
@@ -480,9 +535,6 @@ async function executeResidentDispatch(
   } finally {
     options.signal?.removeEventListener("abort", abortSession);
     unsubscribe();
-    if (spinnerTimer) {
-      clearInterval(spinnerTimer);
-    }
     session.dispose();
   }
 
@@ -543,8 +595,40 @@ export function formatTranscript(details: DispatchDetails): string[] {
   });
 }
 
+function summarizeToolFailures(toolFailures: string[]): string | undefined {
+  if (toolFailures.length === 0) return undefined;
+
+  const counts = new Map<string, number>();
+  for (const name of toolFailures) {
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+
+  const summary = [...counts.entries()]
+    .map(([name, count]) => (count === 1 ? `${name} failed` : `${name} failed ×${count}`))
+    .join(", ");
+
+  return `Internal tool errors: ${summary}.`;
+}
+
 export function buildWarningSummary(details: DispatchDetails): string | undefined {
-  return details.warnings.length > 0 ? details.warnings.join("\n") : undefined;
+  const lines: string[] = [];
+
+  if (details.error) {
+    lines.push(details.error);
+  }
+
+  if (details.warnings.length > 0) {
+    lines.push(...details.warnings);
+  }
+
+  if (details.status !== "success") {
+    const toolFailureSummary = summarizeToolFailures(details.toolFailures);
+    if (toolFailureSummary) {
+      lines.push(toolFailureSummary);
+    }
+  }
+
+  return lines.length > 0 ? lines.join("\n") : undefined;
 }
 
 export function debugDispatch(details: DispatchDetails): string {

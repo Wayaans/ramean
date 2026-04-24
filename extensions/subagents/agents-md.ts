@@ -15,6 +15,8 @@ export function buildSubagentRulesBlock(): string {
     "- Use `designer` for implementation-shaped UI/UX and front-end work such as layout, components, styling, accessibility, responsive behavior, and polish. If the user wants the UI changed, built, fixed, or polished, prefer `designer` over `reviewer`. Do not use `designer` for critique-only, review-only, advisory-only, or planning-only work.",
     "- Use `reviewer` only for read-only review, critique, validation, and final-pass analysis. This includes UI/UX and front-end review when the task is primarily evaluative. Do not use `reviewer` to write code, scout for implementation, or act as the default subagent for mixed tasks.",
     "- If a task needs both implementation and review, dispatch `agent` or `designer` first, then dispatch `reviewer` as a separate pass.",
+    "- When writing a dispatch task, make it a clean brief: include the goal, relevant context, important constraints, and the expected output or changed files when known.",
+    "- Include concrete file paths, failing tests, commands, user-visible expectations, or risky areas when they matter.",
     RAMEAN_SUBAGENT_RULES_END,
   ].join("\n");
 }

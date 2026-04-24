@@ -27,7 +27,9 @@ Reference for the ramean subagent extension.
   - create or edit a project prompt override in `.pi/ramean/agents/`
   - supports `append` and `replace`
 - `/agent:spawn`
-  - dispatch one task directly to a subagent
+  - queue one task to a chosen subagent through a real `dispatch` tool call
+  - prompts for the subagent and task interactively when omitted
+  - uses the normal dispatch message card with live progress in messages
   - shows temporary live status and streamlined progress above the editor while running
   - final rendered output shows the final response without transcript history
 - `/agent:expand`
@@ -74,7 +76,7 @@ There is no separate orchestration tool.
 - `✔` — success
 - `✖` — failed
 
-Each status icon uses a different color. Running states animate through the braille frames.
+Each status icon uses a different color. The shared dispatch working indicator animates through the braille frames while a dispatch is active, and running dispatch surfaces refresh on meaningful progress changes instead of every spinner tick.
 
 ## Config
 
@@ -150,6 +152,8 @@ Hard rules:
   - no `write`
   - no mutating `bash`
 - dispatch does not do keyword or phrase based task classification before launch
+- when the main agent writes a dispatch task, it should prefer a clean structured brief with goal, relevant context, important constraints, and the expected output or changed files when known
+- include concrete file paths, failing tests, commands, user-visible expectations, or risky areas when they matter to the delegated work
 - subagent scope boundaries are enforced primarily by the subagent prompts themselves, plus a small role-specific per-run reminder that reinforces implementation-first routing
 - if a delegated task is out of scope, the subagent should refuse briefly, point to the correct subagent, and stop
 - route by task shape first
@@ -170,15 +174,19 @@ Hard rules:
 
 - `dispatch` shows live running, waiting, failed, and success state in messages
 - completed dispatch cards keep the neutral tool background and add a left success/error accent instead of switching the whole card to a success/error fill
-- running dispatch UI shows streamlined live progress from the latest subagent activity when available
+- running dispatch UI shows streamlined live progress from the latest tool-focused subagent activity when available
+- running dispatch cards and the shared widget refresh on meaningful progress changes instead of every spinner tick so oversized expanded cards stay stable in smaller terminals
 - dispatch task previews are truncated to one line in the message header
+- expanded dispatch cards show the full delegated task text; while running they still hide output and warning/error sections until completion
 - `dispatch` and `/agent:spawn` render final output without transcript history in the normal visible UI
+- `/agent:spawn` reaches that UI by queueing a real `dispatch` tool call, so it keeps the normal live message progress and abort behavior
 - `Ctrl+Shift+O` toggles dispatch-only expansion for subagent dispatch cards without changing other tool output
 - `/agent:expand` provides the same dispatch-only expansion control from the command line
 - dispatch-only expansion state is session-local and resets on reload
 - concurrent top-level dispatches aggregate into one shared above-editor widget
 - while that widget is active, ramean also switches the normal streaming working indicator to a matching animated dispatch spinner
-- expanded results focus on task, output, and warnings/errors
+- expanded completed results focus on task, output, and warnings/errors
+- warning/error sections summarize final surfaced issues instead of listing every recoverable internal tool retry
 - usage tracking is not shown in the normal dispatch UI
 
 ## Files

@@ -50,9 +50,8 @@ export function buildDispatchExpansionStatusLine(enabled: boolean): string {
     : "Dispatch-only expansion is off. Subagent dispatch cards follow the normal Ctrl+O tool expansion state.";
 }
 
-export function syncDispatchExpansionUI(ctx: UiCapableContext, enabled: boolean): void {
+export function syncDispatchExpansionUI(ctx: UiCapableContext, _enabled: boolean): void {
   if (!ctx.hasUI) return;
-  ctx.ui.setStatus("ramean-dispatch-expand", enabled ? "dispatch expanded" : undefined);
   // Re-apply the current tools-expanded state to force a chat redraw without changing
   // the user's normal Ctrl+O expansion preference for other tool cards.
   ctx.ui.setToolsExpanded(ctx.ui.getToolsExpanded());

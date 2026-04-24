@@ -1,6 +1,6 @@
 import type { ExtensionAPI, AgentToolResult } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
-import { executeDispatch } from "../subagents/spawn.js";
+import { buildWarningSummary, executeDispatch, formatDispatchProgress } from "../subagents/spawn.js";
 import { clearStandaloneDispatchWidget, updateStandaloneDispatchWidget } from "../subagents/standalone-widget.js";
 import { renderDispatchCall, renderDispatchResult } from "../UI/renderers.js";
 import type { DispatchDetails } from "../types/subagents.js";
@@ -9,6 +9,49 @@ const DispatchParams = Type.Object({
   agent: Type.String({ description: "Subagent name or alias: agent/ag, designer/ds, reviewer/rv" }),
   task: Type.String({ description: "Task to delegate to the subagent" }),
 });
+
+export const RUNNING_DISPATCH_MESSAGE_UPDATE_INTERVAL_MS = 250;
+
+export function getDispatchMessageUpdateKey(details: DispatchDetails): string {
+  if (details.status === "running") {
+    return JSON.stringify({
+      status: details.status,
+      title: details.title,
+      task: details.task,
+      progress: formatDispatchProgress(details),
+    });
+  }
+
+  return JSON.stringify({
+    status: details.status,
+    title: details.title,
+    task: details.task,
+    output: details.output,
+    warningSummary: buildWarningSummary(details) ?? "",
+  });
+}
+
+export function shouldForwardDispatchMessageUpdate(
+  lastUpdateKey: string | undefined,
+  lastUpdateAt: number,
+  details: DispatchDetails,
+  now = Date.now(),
+): { key: string; forward: boolean } {
+  const key = getDispatchMessageUpdateKey(details);
+  if (key === lastUpdateKey) {
+    return { key, forward: false };
+  }
+
+  if (
+    details.status === "running"
+    && lastUpdateAt > 0
+    && now - lastUpdateAt < RUNNING_DISPATCH_MESSAGE_UPDATE_INTERVAL_MS
+  ) {
+    return { key, forward: false };
+  }
+
+  return { key, forward: true };
+}
 
 export function registerDispatchTool(pi: ExtensionAPI): void {
   pi.registerTool({
@@ -24,6 +67,9 @@ export function registerDispatchTool(pi: ExtensionAPI): void {
       "Use reviewer only for read-only review, critique, validation, and final-pass analysis, including UI/UX or front-end reviews when the task is primarily evaluative.",
       "If a task needs both implementation and review, dispatch agent or designer first, then dispatch reviewer as a separate pass.",
       "When using agent or designer for implementation work, ask them to implement the change, not just suggest approaches, unless the user explicitly wants brainstorming or options only.",
+      "Write dispatch tasks as clean structured briefs: state the goal, relevant context, important constraints, and the expected output or changed files when known.",
+      "Include concrete paths, failing tests, commands, user-visible expectations, or risky areas when they matter to the delegated work.",
+      "Keep the task readable and well-organized because the expanded dispatch UI shows the delegated task text directly.",
       "When multiple subagents are needed, issue multiple top-level dispatch calls in parallel instead of looking for an orchestration tool.",
       "Do not ask a subagent to dispatch other subagents.",
     ],
@@ -31,6 +77,8 @@ export function registerDispatchTool(pi: ExtensionAPI): void {
     renderShell: "self",
     async execute(toolCallId, params, signal, onUpdate, ctx): Promise<AgentToolResult<DispatchDetails>> {
       const widgetKey = `tool:${toolCallId}`;
+      let lastMessageUpdateKey: string | undefined;
+      let lastMessageUpdateAt = 0;
 
       try {
         const details = await executeDispatch({
@@ -42,6 +90,15 @@ export function registerDispatchTool(pi: ExtensionAPI): void {
           signal,
           onUpdate: (partial) => {
             updateStandaloneDispatchWidget(ctx, widgetKey, partial);
+
+            const now = Date.now();
+            const decision = shouldForwardDispatchMessageUpdate(lastMessageUpdateKey, lastMessageUpdateAt, partial, now);
+            if (!decision.forward) {
+              return;
+            }
+
+            lastMessageUpdateKey = decision.key;
+            lastMessageUpdateAt = now;
             onUpdate?.({
               content: [{ type: "text", text: partial.output || "(running...)" }],
               details: partial,

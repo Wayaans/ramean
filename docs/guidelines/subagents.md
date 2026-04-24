@@ -37,11 +37,12 @@ Subagents should always be available to the main agent with clear instructions, 
   - create an append or replace system prompt override for a selected subagent
   - save under project `.pi/ramean/agents/`
 - `/agent:spawn`
-  - dispatch a subagent directly without routing through the main-agent conversation
+  - queue a real `dispatch` tool call after choosing the subagent and task
   - example:
     - `/agent:spawn reviewer help me find dead code in this codebase`
     - `/agent:spawn designer revamp dashboard icon to use bigger icon`
   - still show that the agent was dispatched in conversation output
+  - keep the normal dispatch live progress in messages
   - show temporary live status in the widget while running
   - do not render the full transcript in the final visible output by default; show the final result only
 - `/agent:expand`
@@ -100,7 +101,8 @@ Hard rules:
 Rules:
 
 - each status icon must use a different color
-- the running icon must animate while the subagent is active
+- the shared dispatch working indicator must animate while the subagent is active
+- running dispatch message cards and the shared widget may refresh on meaningful progress changes instead of every spinner tick when that keeps the terminal stable
 
 ## Configuration
 
@@ -153,6 +155,8 @@ Rules:
   - custom tools are allowed only if they are read-only
 - Do not rely on keyword or phrase classifiers to pre-route delegated tasks inside the extension runtime
 - Let the main agent choose the subagent, then let the subagent prompt plus the per-run reminder self-check scope before doing work
+- When the main agent writes a dispatch task, make it a clean structured brief with goal, relevant context, important constraints, and the expected output or changed files when known
+- Include concrete file paths, failing tests, commands, user-visible expectations, or risky areas when they matter to the delegated work
 - If a delegated task is out of scope, the subagent should refuse briefly, name the correct subagent, and stop
 - Route by task shape first
   - implementation-shaped non-UI work belongs to Agent
@@ -172,16 +176,19 @@ Rules:
   - show a temporary widget above the editor while a standalone dispatch is running
   - show the selected subagent and live status icon
   - keep the task preview truncated to one line in the header
-  - show a streamlined live progress summary from the latest subagent activity when available
+  - show a streamlined live progress summary from the latest tool-focused subagent activity when available
+  - refresh running dispatch message cards and the shared widget on meaningful progress changes instead of every spinner tick when that avoids oversized-card flicker in the terminal
+  - expanded dispatch cards should show the full delegated task text; while running they should still hide output and warning/error sections until completion
   - final visible output should focus on task, result, and warnings/errors
   - do not show usage tracking in the normal dispatch UI
   - do not include the subagent transcript in the normal rendered output
+  - summarize only final surfaced warnings/errors instead of listing every recoverable internal tool retry
   - support dispatch-only expansion via `Ctrl+Shift+O` and `/agent:expand` without changing other tool cards
   - dispatch-only expansion state should be session-local and reset on reload
   - concurrent standalone dispatches aggregate into one shared widget
   - widget stays compact and shows only the dispatch labels and live status icons
 - `/agent:spawn`
-  - use the same runtime and widget contract as standalone `dispatch`
+  - use the same runtime, message-card, and widget contract as standalone `dispatch`
   - keep the shared widget compact while running
   - final visible message should show the final response without dumping transcript history
 

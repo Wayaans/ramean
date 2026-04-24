@@ -6,18 +6,34 @@ import type { DispatchDetails } from "../types/subagents.js";
 type UiContext = Pick<ExtensionContext, "ui"> | Pick<ExtensionCommandContext, "ui">;
 
 const activeStandaloneDispatches = new Map<string, DispatchDetails>();
+let dispatchWidgetActive = false;
+let lastRenderedDispatchWidget: string | undefined;
 
 function renderStandaloneDispatchWidget(ctx: UiContext): void {
   if (activeStandaloneDispatches.size === 0) {
-    ctx.ui.setWidget("ramean-dispatch", undefined);
-    setDispatchWorkingIndicator(ctx, false);
+    if (lastRenderedDispatchWidget !== undefined || dispatchWidgetActive) {
+      ctx.ui.setWidget("ramean-dispatch", undefined);
+    }
+    if (dispatchWidgetActive) {
+      setDispatchWorkingIndicator(ctx, false);
+    }
+    dispatchWidgetActive = false;
+    lastRenderedDispatchWidget = undefined;
     return;
   }
 
-  setDispatchWorkingIndicator(ctx, true);
+  const widget = formatDispatchWidget([...activeStandaloneDispatches.values()], ctx.ui.theme);
+  if (!dispatchWidgetActive) {
+    setDispatchWorkingIndicator(ctx, true);
+    dispatchWidgetActive = true;
+  }
+  if (widget === lastRenderedDispatchWidget) {
+    return;
+  }
+  lastRenderedDispatchWidget = widget;
   ctx.ui.setWidget(
     "ramean-dispatch",
-    [formatDispatchWidget([...activeStandaloneDispatches.values()], ctx.ui.theme)],
+    [widget],
     { placement: "aboveEditor" },
   );
 }

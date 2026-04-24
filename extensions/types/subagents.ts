@@ -76,6 +76,7 @@ export interface DispatchDetails {
   output: string;
   streamlinedProgress?: string;
   warnings: string[];
+  toolFailures: string[];
   error?: string;
   exitCode: number;
   stopReason?: string;
