@@ -17,6 +17,7 @@ export function buildSubagentRulesBlock(): string {
     "- If a task needs both implementation and review, dispatch `agent` or `designer` first, then dispatch `reviewer` as a separate pass.",
     "- When writing a dispatch task, make it a clean brief: include the goal, relevant context, important constraints, and the expected output or changed files when known.",
     "- Include concrete file paths, failing tests, commands, user-visible expectations, or risky areas when they matter.",
+    "- After a designer dispatch completes, treat its output as authoritative for UI/UX decisions. Do not directly edit, rewrite, or overwrite files the designer produced or modified. If adjustments are needed, dispatch the designer again with a follow-up task instead of making changes yourself. You may only add new files or edit non-UI files that the designer did not touch.",
     RAMEAN_SUBAGENT_RULES_END,
   ].join("\n");
 }
