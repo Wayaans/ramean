@@ -40,3 +40,10 @@
 
 - extension: git-guardrails
   enabled: false
+
+- extension: refine-my-prompt
+  enabled: true
+  model:
+    provider: github-copilot
+    model: gpt-5.4-mini
+    thinking: low
