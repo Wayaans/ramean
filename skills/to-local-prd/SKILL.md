@@ -13,7 +13,7 @@ This skill takes the current conversation context (or an external document the u
 
 3. **Sketch modules** — Identify major modules to build or modify. Look for deep modules with simple, testable interfaces. Note which modules warrant dedicated tests.
 
-4. **Write the PRD** — Create a local PRD file in `.docs/issues/`. Determine the next number by scanning `.docs/issues/*.md` for the highest existing number and incrementing by 1. If no issues exist, start at 1. Use filename format `NNN-slug.md` where slug is auto-derived (kebab-case) from the Problem Statement. Write the PRD using the template below.
+4. **Write the PRD** — Create a local PRD file in `.docs/issues/`. Determine the next number by scanning `.docs/issues/*.md` for the highest existing number and incrementing by 1. If no issues exist, start at 1. Use filename format `NNN-PRD-slug.md` where slug is auto-derived (kebab-case) from the Problem Statement. Write the PRD using the template below.
 
 <prd-template>
 
@@ -40,15 +40,37 @@ Measurable outcomes that indicate the solution is working. Prefer concrete crite
 
 ## User Stories
 
-Numbered user stories in the format: As an <actor>, I want <feature>, so that <benefit>.
+A LONG, numbered list of user stories. Each user story should be in the format of:
+
+1. As an <actor>, I want a <feature>, so that <benefit>
+
+<user-story-example>
+1. As a mobile bank customer, I want to see balance on my accounts, so that I can make better informed decisions about my spending
+</user-story-example>
+
+This list of user stories should be extremely extensive and cover all aspects of the feature.
 
 ## Implementation Decisions
 
-Key decisions: modules to build/modify, interfaces, architectural choices, schema changes, API contracts. Do NOT include file paths or code snippets.
+A list of implementation decisions that were made. This can include:
+
+- The modules that will be built/modified
+- The interfaces of those modules that will be modified
+- Technical clarifications from the developer
+- Architectural decisions
+- Schema changes
+- API contracts
+- Specific interactions
+
+Do NOT include specific file paths or code snippets. They may end up being outdated very quickly.
 
 ## Testing Decisions
 
-What makes a good test, which modules get tests, and prior art from the codebase.
+A list of testing decisions that were made. Include:
+
+- A description of what makes a good test (only test external behavior, not implementation details)
+- Which modules will be tested
+- Prior art for the tests (i.e. similar types of tests in the codebase)
 
 ## Out of Scope
 

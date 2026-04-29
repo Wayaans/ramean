@@ -175,7 +175,8 @@ export function registerQuestionTools(pi: ExtensionAPI): void {
         otherLabel: input.otherLabel,
       };
 
-      const result = await askInteractiveQuestions(ctx, [interactiveQuestion]);
+      const preamble = extractPreamble(ctx);
+      const result = await askInteractiveQuestions(ctx, [interactiveQuestion], preamble);
       const answer = result.answers[0];
       const details: QuestionDetails = {
         question: input.question,
@@ -209,7 +210,7 @@ export function registerQuestionTools(pi: ExtensionAPI): void {
       text += "\n";
       text += theme.fg(
         "dim",
-        `  ${optionLabels.length} option${optionLabels.length === 1 ? "" : "s"}${input.allowOther === false ? "" : " + custom answer"} · ${truncateToWidth(summary, 72)}`,
+        `  ${optionLabels.length} option${optionLabels.length === 1 ? "" : "s"}${input.allowOther === false ? "" : " + custom answer"} · ${summary}`,
       );
       return new Text(text, 0, 0);
     },
@@ -283,7 +284,8 @@ export function registerQuestionTools(pi: ExtensionAPI): void {
         );
       }
 
-      const result = await askInteractiveQuestions(ctx, questions);
+      const preamble = extractPreamble(ctx);
+      const result = await askInteractiveQuestions(ctx, questions, preamble);
       const details: QuestionnaireResult = {
         questions: result.questions.map((question) => ({
           id: question.id,
@@ -330,7 +332,7 @@ export function registerQuestionTools(pi: ExtensionAPI): void {
       let text = theme.fg("toolTitle", theme.bold("questionnaire "));
       text += theme.fg("muted", `${questions.length} step${questions.length === 1 ? "" : "s"}`);
       if (labels) {
-        text += `\n${theme.fg("dim", `  ${truncateToWidth(labels, 72)}`)}`;
+        text += `\n${theme.fg("dim", `  ${labels}`)}`;
       }
       return new Text(text, 0, 0);
     },
@@ -390,7 +392,30 @@ function errorQuestionnaireResult(message: string, questions: InteractiveQuestio
   };
 }
 
-async function askInteractiveQuestions(ctx: ExtensionContext, questions: InteractiveQuestion[]): Promise<InteractiveResult> {
+function extractPreamble(ctx: ExtensionContext): string | undefined {
+  const branch = ctx.sessionManager.getBranch();
+  for (let index = branch.length - 1; index >= 0; index--) {
+    const entry = branch[index];
+    if (entry.type !== "message") continue;
+    const message = entry.message;
+    if (message.role !== "assistant") continue;
+
+    const textParts: string[] = [];
+    for (const part of message.content) {
+      if (part.type === "text") {
+        textParts.push(part.text);
+      } else if (part.type === "toolCall") {
+        break;
+      }
+    }
+
+    const combined = textParts.join("").trim();
+    return combined || undefined;
+  }
+  return undefined;
+}
+
+async function askInteractiveQuestions(ctx: ExtensionContext, questions: InteractiveQuestion[], preamble?: string): Promise<InteractiveResult> {
   const normalizedQuestions = questions.map((question, index) => ({
     ...question,
     label: question.label?.trim() ? question.label.trim() : `Q${index + 1}`,
@@ -620,6 +645,13 @@ async function askInteractiveQuestions(ctx: ExtensionContext, questions: Interac
         `${theme.fg("accent", theme.bold(panelTitle))}${theme.fg("muted", ` · ${panelMeta}`)}`,
         width,
       );
+
+      if (preamble) {
+        add("");
+        for (const preambleLine of preamble.split("\n")) {
+          pushWrappedLine(lines, theme.fg("muted", preambleLine), width, " ");
+        }
+      }
 
       if (isMultiStep) {
         const progressLabel = isReviewStep() ? "review & submit" : `step ${currentStep + 1}/${normalizedQuestions.length}`;

@@ -142,7 +142,7 @@ Current subagent execution state:
   - auto-registers one command per ramean package skill under `skills/`
   - invokes the matching skill like a normal `/skill:<name>` call, including the visible `[skill]` card
   - forwards optional args as the follow-up user text after the skill block
-  - current bundled helpers: `/flair:commit`, `/flair:tdd-lite`, `/flair:tdd-full`
+  - examples include: `/flair:commit`, `/flair:tdd`, `/flair:tdd-swarm`
 - `/guardrails:git`
   - toggles git-guardrails on or off
   - optional args: `enable`, `disable`, and `status`

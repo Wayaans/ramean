@@ -48,7 +48,7 @@ Dispatch also adds a lightweight role-specific reminder at run time so `agent` a
 
 While the standalone dispatch widget is active above the editor, ramean also swaps Pi's normal streaming working indicator to a matching animated dispatch spinner. Running dispatch cards keep live progress, but they now refresh on meaningful progress changes instead of every spinner tick so oversized expanded cards stay stable in smaller terminals.
 
-`/flair:<skill-dir>` loads the matching ramean package skill from `skills/` and invokes it like a normal `/skill:<name>` call, including the visible `[skill]` card and any optional trailing args as the follow-up user text. Current bundled helpers include `/flair:commit`, `/flair:tdd-lite`, and `/flair:tdd-full`.
+`/flair:<skill-dir>` loads the matching ramean package skill from `skills/` and invokes it like a normal `/skill:<name>` call, including the visible `[skill]` card and any optional trailing args as the follow-up user text. Examples include `/flair:commit`, `/flair:tdd`, and `/flair:tdd-swarm`. 
 
 `/guardrails:git` toggles the git-guardrails extension, which is disabled by default and blocks common dangerous git bash commands such as `git push` and `git reset --hard` when enabled. The command now leaves a visible status message showing whether guardrails are enabled or disabled and where the project override lives.
 

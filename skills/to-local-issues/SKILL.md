@@ -88,7 +88,7 @@ Create issues in dependency order (blockers first) so you can reference real iss
 <issue-template>
 ```yaml
 ---
-number: N
+number: NNN
 title: "Short descriptive name"
 status: open
 date_created: YYYY-MM-DD
