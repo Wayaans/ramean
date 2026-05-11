@@ -1,19 +1,33 @@
 ---
-name: to-local-prd
+name: make-prd
 description: "Turn the current conversation context or an external document into a detailed local PRD under .docs/issues/ with auto-increment numbering. Adds Success Metrics, Dependencies, and Risks & Constraints over the original to-prd template. Use when user wants to create a PRD locally, write a PRD from conversation context, or convert a spec into a PRD file."
 ---
 
-This skill takes the current conversation context (or an external document the user provides) and produces a detailed local PRD. Do NOT interview the user — just synthesize what you already know.
+This skill takes the current conversation context and codebase understanding or an external document the user provides and produces a detailed local PRD. Do NOT interview the user — just synthesize what you already know.
 
 ## Process
 
-1. **Gather context** — Work from whatever is already in the conversation context. If the user passes a source reference (file path, URL, etc.), fetch it.
+1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the PRD, and respect any ADRs in the area you're touching.
 
-2. **Explore the codebase** (optional) — If you haven't already and the PRD touches existing code, explore to understand current state. Skip if context is already sufficient.
+2. Sketch out the major modules you will need to build or modify to complete the implementation. Actively look for opportunities to extract deep modules that can be tested in isolation.
 
-3. **Sketch modules** — Identify major modules to build or modify. Look for deep modules with simple, testable interfaces. Note which modules warrant dedicated tests.
+A deep module (as opposed to a shallow module) is one which encapsulates a lot of functionality in a simple, testable interface which rarely changes.
 
-4. **Write the PRD** — Create a local PRD file in `.docs/issues/`. Determine the next number by scanning `.docs/issues/*.md` for the highest existing number and incrementing by 1. If no issues exist, start at 1. Use filename format `NNN-PRD-slug.md` where slug is auto-derived (kebab-case) from the Problem Statement. Write the PRD using the template below.
+Check with the user that these modules match their expectations. Check with the user which modules they want tests written for.
+
+3. Write the PRD using the template below, then publish it to the project issue tracker. Apply the `needs-triage` triage label so it enters the normal triage flow.
+
+## Process
+
+1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the PRD, and respect any ADRs in the area you're touching, and if the user passes a source reference (file path, URL, etc.), fetch it.
+
+2. Sketch out the major modules you will need to build or modify to complete the implementation. Actively look for opportunities to extract deep modules that can be tested in isolation.
+
+A deep module (as opposed to a shallow module) is one which encapsulates a lot of functionality in a simple, testable interface which rarely changes.
+
+Check with the user that these modules match their expectations. Check with the user which modules they want tests written for.
+
+3. Write the PRD using the template below, then publish it to the project issue tracker. Apply the `needs-triage` triage label so it enters the normal triage flow.
 
 <prd-template>
 
@@ -21,7 +35,7 @@ This skill takes the current conversation context (or an external document the u
 number: N
 title: "Short descriptive title"
 date_created: YYYY-MM-DD
-status: open
+status: needs-triage
 source: "file path, URL, or 'conversation context'"
 issues: []
 ---

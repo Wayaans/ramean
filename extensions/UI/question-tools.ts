@@ -1,15 +1,18 @@
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import {
+  Container,
   Editor,
   type EditorTheme,
   Key,
   matchesKey,
   Text,
+  TruncatedText,
   truncateToWidth,
   visibleWidth,
   wrapTextWithAnsi,
 } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
+import { summarizeText } from "../core/utils.js";
 
 interface QuestionOption {
   label: string;
@@ -202,8 +205,12 @@ export function registerQuestionTools(pi: ExtensionAPI): void {
         details,
       };
     },
-    renderCall(args, theme) {
+    renderCall(args, theme, context) {
       const input = args as QuestionToolParams;
+      if (shouldRenderCompactCall(context)) {
+        return renderCompactQuestionCall(input, theme);
+      }
+
       const optionLabels = input.options.map((option) => option.label);
       const summary = optionLabels.length > 0 ? optionLabels.join(", ") : "freeform only";
       let text = theme.fg("toolTitle", theme.bold("question ")) + theme.fg("muted", input.question);
@@ -325,8 +332,12 @@ export function registerQuestionTools(pi: ExtensionAPI): void {
         details,
       };
     },
-    renderCall(args, theme) {
+    renderCall(args, theme, context) {
       const input = args as { questions?: Array<{ label?: string; id?: string }> };
+      if (shouldRenderCompactCall(context)) {
+        return renderCompactQuestionnaireCall(input, theme);
+      }
+
       const questions = input.questions ?? [];
       const labels = questions.map((question, index) => question.label || question.id || `Q${index + 1}`).join(", ");
       let text = theme.fg("toolTitle", theme.bold("questionnaire "));
@@ -798,6 +809,51 @@ function parseNumericSelection(data: string, optionCount: number): number | unde
   if (data.length !== 1 || !/^[1-9]$/.test(data)) return undefined;
   const value = Number(data) - 1;
   return value >= 0 && value < optionCount ? value : undefined;
+}
+
+function shouldRenderCompactCall(context: { expanded?: boolean } | undefined): boolean {
+  return Boolean(context && !context.expanded);
+}
+
+function renderCompactQuestionCall(input: QuestionToolParams, theme: any): Container {
+  const optionLabels = input.options.map((option) => option.label);
+  const summary = optionLabels.length > 0 ? summarizeText(optionLabels.join(", "), 160) : "freeform only";
+  const container = new Container();
+  container.addChild(
+    new TruncatedText(
+      `${theme.fg("toolTitle", theme.bold("question "))}${theme.fg("muted", summarizeText(input.question, 120))}`,
+      0,
+      0,
+    ),
+  );
+  container.addChild(
+    new TruncatedText(
+      theme.fg(
+        "dim",
+        `  ${optionLabels.length} option${optionLabels.length === 1 ? "" : "s"}${input.allowOther === false ? "" : " + custom answer"} · ${summary}`,
+      ),
+      0,
+      0,
+    ),
+  );
+  return container;
+}
+
+function renderCompactQuestionnaireCall(
+  input: { questions?: Array<{ label?: string; id?: string }> },
+  theme: any,
+): Container {
+  const questions = input.questions ?? [];
+  const labels = summarizeText(
+    questions.map((question, index) => question.label || question.id || `Q${index + 1}`).join(", "),
+    160,
+  );
+  const container = new Container();
+  container.addChild(new TruncatedText(`${theme.fg("toolTitle", theme.bold("questionnaire "))}${theme.fg("muted", `${questions.length} step${questions.length === 1 ? "" : "s"}`)}`, 0, 0));
+  if (labels) {
+    container.addChild(new TruncatedText(theme.fg("dim", `  ${labels}`), 0, 0));
+  }
+  return container;
 }
 
 function pushWrappedLine(lines: string[], text: string, width: number, indent = ""): void {

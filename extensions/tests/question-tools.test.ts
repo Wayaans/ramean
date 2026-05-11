@@ -81,6 +81,33 @@ test("question renderCall shows the question text in full", () => {
   assert.ok(collapsed.includes("horizontal scaling"), "question text must not be truncated mid-phrase");
 });
 
+test("question renderCall stays compact in collapsed tool execution context", () => {
+  const tools = captureTools();
+  const tool = tools.find((t) => t.name === "question");
+  assert.ok(tool);
+
+  const args = {
+    question:
+      "Given the constraints of the existing infrastructure and the team's current expertise, which architectural pattern would best support horizontal scaling while keeping operational overhead low?",
+    options: [
+      { label: "JWT tokens with automatic refresh on every request" },
+      { label: "Session-based auth stored server-side in Redis" },
+      { label: "OAuth 2.0 with PKCE flow and short-lived tokens" },
+      { label: "API key rotation with scoped permissions per service" },
+      { label: "Mutual TLS certificate authentication for all endpoints" },
+    ],
+  };
+
+  const component = tool.renderCall(args, theme, { expanded: false });
+  const lines: string[] = component.render(50);
+  const collapsed = collapseLines(lines);
+
+  assert.equal(lines.length, 2, "collapsed pending preview should stay at two lines");
+  assert.ok(collapsed.includes("question"));
+  assert.ok(collapsed.includes("5 options"));
+  assert.ok(!collapsed.includes(args.options[4]!.label), "collapsed pending preview should not expand to full option list");
+});
+
 test("questionnaire renderCall wraps long step labels without truncating with ellipsis", () => {
   const tools = captureTools();
   const tool = tools.find((t) => t.name === "questionnaire");
@@ -107,4 +134,30 @@ test("questionnaire renderCall wraps long step labels without truncating with el
 
   const raw = lines.join("\n");
   assert.doesNotMatch(raw, /\.\.\.\s*\n|\.\.\.$/m, "rendered output must not contain ellipsis truncation");
+});
+
+test("questionnaire renderCall stays compact in collapsed tool execution context", () => {
+  const tools = captureTools();
+  const tool = tools.find((t) => t.name === "questionnaire");
+  assert.ok(tool);
+
+  const args = {
+    questions: [
+      { id: "scope", label: "Project Scope and Goals Definition" },
+      { id: "priority", label: "Business Priority Ranking" },
+      { id: "style", label: "Architectural Style Preference" },
+      { id: "timeline", label: "Delivery Timeline Constraint" },
+      { id: "team", label: "Team Size and Skills Assessment" },
+      { id: "risk", label: "Risk Tolerance and Mitigation Strategy" },
+    ],
+  };
+
+  const component = tool.renderCall(args, theme, { expanded: false });
+  const lines: string[] = component.render(44);
+  const collapsed = collapseLines(lines);
+
+  assert.equal(lines.length, 2, "collapsed pending preview should stay at two lines");
+  assert.ok(collapsed.includes("questionnaire"));
+  assert.ok(collapsed.includes("6 steps"));
+  assert.ok(!collapsed.includes(args.questions[5]!.label), "collapsed pending preview should not expand to full step list");
 });
