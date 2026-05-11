@@ -7,7 +7,6 @@ import { registerAgentPromptCommand } from "./commands/agent-prompt.js";
 import { registerAgentSpawnCommand } from "./commands/agent-spawn.js";
 import { registerAgentStatusCommand } from "./commands/agent-status.js";
 import { registerRefineMyPromptCommand } from "./commands/refine-my-prompt.js";
-import { registerFlairCommands } from "./commands/flair.js";
 import { registerGuardrailsGitCommand } from "./commands/guardrails-git.js";
 import { registerToolsCompactionCommand } from "./commands/tools-compaction.js";
 import { registerToolsStatusCommand } from "./commands/tools-status.js";
@@ -55,7 +54,6 @@ export default function rameanExtensionPack(pi: ExtensionAPI, context?: Extensio
   registerAgentInsertCommand(pi);
   registerAgentStatusCommand(pi);
   registerAgentPromptCommand(pi);
-  registerFlairCommands(pi);
   registerRefineMyPromptCommand(pi, cwd);
 
   const optionalExtensions = loadMergedOptionalExtensionsState(cwd);

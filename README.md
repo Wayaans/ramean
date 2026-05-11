@@ -31,7 +31,7 @@ Right now this package ships:
 - [x] footer badges
 - [x] git guardrails
 
-Useful commands include `/agent`, `/agent:expand`, `/agent:insert`, `/agent:prompt`, `/agent:spawn`, `/agent:status`, `/flair:<skill-dir>`, `/tools:status`, `/tools:compaction`, `/handoff`, and `/guardrails:git`.
+Useful commands include `/agent`, `/agent:expand`, `/agent:insert`, `/agent:prompt`, `/agent:spawn`, `/agent:status`, `/tools:status`, `/tools:compaction`, `/handoff`, and `/guardrails:git`.
 
 Routing at a glance:
 
@@ -47,8 +47,6 @@ Dispatch also adds a lightweight role-specific reminder at run time so `agent` a
 `/agent:expand` and `Ctrl+Shift+O` control dispatch-only expansion for subagent dispatch cards without changing other tool output. `/agent:expand` supports `toggle`, `expand`, `collapse`, and `status`. This preference is session-local and resets on reload.
 
 While the standalone dispatch widget is active above the editor, ramean also swaps Pi's normal streaming working indicator to a matching animated dispatch spinner. Running dispatch cards keep live progress, but they now refresh on meaningful progress changes instead of every spinner tick so oversized expanded cards stay stable in smaller terminals.
-
-`/flair:<skill-dir>` loads the matching ramean package skill from `skills/` and invokes it like a normal `/skill:<name>` call, including the visible `[skill]` card and any optional trailing args as the follow-up user text. Examples include `/flair:commit`, `/flair:tdd`, and `/flair:tdd-swarm`. 
 
 `/guardrails:git` toggles the git-guardrails extension, which is disabled by default and blocks common dangerous git bash commands such as `git push` and `git reset --hard` when enabled. The command now leaves a visible status message showing whether guardrails are enabled or disabled and where the project override lives.
 
