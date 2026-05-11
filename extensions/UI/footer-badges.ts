@@ -1,6 +1,8 @@
 import type { AssistantMessage } from "@mariozechner/pi-ai";
 import type { ContextUsage, ExtensionContext, SessionEntry, Theme } from "@mariozechner/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
+import type { CodexUsageManager } from "./codex-usage.js";
+import { createCodexBadge } from "./codex-usage.js";
 
 export type BadgeTone = "text" | "muted" | "dim" | "accent" | "warning" | "error" | "raw";
 export type BadgeKind =
@@ -15,7 +17,8 @@ export type BadgeKind =
   | "provider"
   | "model"
   | "thinking"
-  | "status";
+  | "status"
+  | "codexUsage";
 
 export interface BadgeVariant {
   body: string;
@@ -154,6 +157,7 @@ export function installFooterBadges(
   ctx: ExtensionContext,
   state: FooterRenderState,
   resolveThinkingLevel?: () => string | undefined,
+  codexManager?: CodexUsageManager,
 ): void {
   ctx.ui.setFooter((tui, theme, footerData) => {
     const requestRender = () => tui.requestRender();
@@ -173,7 +177,7 @@ export function installFooterBadges(
       render(width: number): string[] {
         refreshDynamicSnapshot(state, resolveThinkingLevel);
         const leftPlans = buildLeftPlans(state.snapshot, footerData.getGitBranch());
-        const rightPlans = buildRightPlans(state.snapshot);
+        const rightPlans = buildRightPlans(state.snapshot, codexManager);
         const lines = buildRequiredLines(width, leftPlans, rightPlans);
         const statusLine = buildStatusLine(width, footerData.getExtensionStatuses());
         const renderedLines = lines.map((line) => renderFooterLine(theme, line, width));
@@ -408,9 +412,10 @@ function buildLeftPlans(snapshot: FooterSnapshot, gitBranch: string | null): Bad
   ].filter(isBadgePlan);
 }
 
-function buildRightPlans(snapshot: FooterSnapshot): BadgePlan[] {
+function buildRightPlans(snapshot: FooterSnapshot, codexManager?: CodexUsageManager): BadgePlan[] {
   const thinkingBadge = snapshot.modelReasoning ? createThinkingBadge(snapshot.thinkingLevel) : undefined;
-  return [createProviderBadge(snapshot.provider), createModelBadge(snapshot.modelId, snapshot.provider), thinkingBadge].filter(
+  const codexBadge = codexManager ? createCodexBadge(codexManager.snapshot) : undefined;
+  return [codexBadge, createProviderBadge(snapshot.provider), createModelBadge(snapshot.modelId, snapshot.provider), thinkingBadge].filter(
     isBadgePlan,
   );
 }

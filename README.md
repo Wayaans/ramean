@@ -14,9 +14,10 @@ Right now this package ships:
   - ramean keeps these prioritized ahead of bash without overriding explicit Pi tool allowlists such as `--tools` or `--no-tools`
 - tools support commands: `/tools:status` and `/tools:compaction`
 - custom compaction using `github-copilot/gemini-3-flash-preview`
-- extra extensions: handoff, notify, minimal-mode, footer-badges, and git-guardrails
+- extra extensions: handoff, notify, minimal-mode, footer-badges, git-guardrails, and codex-usage
   - minimal-mode also adds a subtler animated working indicator and clearer compact previews for `web_fetch` and `find_docs`
   - footer-badges replaces Pi's default interactive footer with compact path, branch, usage, cost, provider, model, and thinking badges
+  - codex-usage shows a `◷ N%` badge in the footer when using `openai-codex` models, with threshold coloring (muted < 75%, warning 75-90%, error 90%+), and provides an enhanced `/codex-limit` command with 5-hour and weekly progress bars
 
 ## Included today
 
@@ -30,6 +31,7 @@ Right now this package ships:
 - [x] minimal tools
 - [x] footer badges
 - [x] git guardrails
+- [x] codex usage
 
 Useful commands include `/agent`, `/agent:expand`, `/agent:insert`, `/agent:prompt`, `/agent:spawn`, `/agent:status`, `/tools:status`, `/tools:compaction`, `/handoff`, and `/guardrails:git`.
 

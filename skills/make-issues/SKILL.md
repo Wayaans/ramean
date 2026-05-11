@@ -69,6 +69,7 @@ Publish issues in dependency order (blockers first) so you can reference real is
 
 # Introduction
 
+Name of the implementation issue
 ![Status: <status>](https://img.shields.io/badge/status-<status>-<status_color>)
 
 ## What to build

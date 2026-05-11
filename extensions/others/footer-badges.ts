@@ -6,9 +6,17 @@ import {
   resetFooterRenderState,
   updateFooterSnapshot,
 } from "../UI/footer-badges.js";
+import {
+  CodexUsageManager,
+  refreshCodexUsage,
+  registerCodexLimitCommand,
+} from "../UI/codex-usage.js";
 
 export function registerFooterBadgesExtension(pi: ExtensionAPI): void {
   const state = createFooterRenderState();
+  const codexManager = new CodexUsageManager(state);
+  refreshCodexUsage(pi, codexManager);
+  registerCodexLimitCommand(pi, codexManager);
 
   const getThinkingLevel = (): string | undefined => {
     try {
@@ -31,11 +39,13 @@ export function registerFooterBadgesExtension(pi: ExtensionAPI): void {
     if (!ctx.hasUI) return;
     const thinkingLevel = ctx.model?.reasoning ? getThinkingLevel() : undefined;
     updateFooterSnapshot(state, createFooterSnapshot(ctx, thinkingLevel));
-    installFooterBadges(ctx, state, getThinkingLevel);
+    void codexManager.refresh(ctx);
+    installFooterBadges(ctx, state, getThinkingLevel, codexManager);
   });
 
   pi.on("model_select", async (_event, ctx) => {
     refresh(ctx);
+    void codexManager.refresh(ctx);
   });
 
   pi.on("agent_start", async (_event, ctx) => {
