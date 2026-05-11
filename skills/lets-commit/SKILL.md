@@ -1,10 +1,10 @@
 ---
-name: commit
+name: lets-commit
 description: >
   Ultra-compressed commit message generator. Cuts noise from commit messages while preserving
   intent and reasoning. Conventional Commits format. Subject ≤50 chars, body only when "why"
   isn't obvious. Use when user says "write a commit", "commit message", "generate commit",
-  "/commit", or invokes /skill:commit.
+  "/lets-commit", or invokes /skill:lets-commit.
 ---
 
 Write commit messages terse and exact. Conventional Commits format. No fluff. Why over what.

@@ -1,5 +1,5 @@
 ---
-name: tdd-swarm
+name: lets-tdd-swarm
 description: Subagent-orchestrated test-driven development. Use when building features or fixing bugs using TDD with subagent delegation, when mentioning "swarm TDD", "TDD with agents", "delegate implementation", or doing TDD on tasks that span UI and logic layers. Also use when the user wants to parallelize TDD work across multiple agents, or when doing red-green-refactor and mentions subagents or delegation.
 ---
 
