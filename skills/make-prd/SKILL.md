@@ -15,7 +15,7 @@ A deep module (as opposed to a shallow module) is one which encapsulates a lot o
 
 Check with the user that these modules match their expectations. Check with the user which modules they want tests written for.
 
-3. Write the PRD using the template below, then publish it to the project issue tracker. Apply the `needs-triage` triage label so it enters the normal triage flow.
+3. Write the PRD using the template below, then publish it to the project issue tracker. 
 
 ## Process
 
@@ -27,7 +27,24 @@ A deep module (as opposed to a shallow module) is one which encapsulates a lot o
 
 Check with the user that these modules match their expectations. Check with the user which modules they want tests written for.
 
-3. Write the PRD using the template below, then publish it to the project issue tracker. Apply the `needs-triage` triage label so it enters the normal triage flow.
+3. Write the PRD using the template below, then publish it to the project issue tracker.
+
+Issues and PRDs for this repo live as markdown files in `.scratch/`.
+
+## Conventions
+
+- One feature per directory: `.scratch/<feature-slug>/`
+- The PRD is `.scratch/<feature-slug>/PRD.md`
+- Implementation issues are `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01`
+- Comments and conversation history append to the bottom of the file under a `## Comments` heading
+
+## When a skill says "publish to the issue tracker"
+
+Create a new file under `.scratch/<feature-slug>/` (creating the directory if needed).
+
+## When a skill says "fetch the relevant ticket"
+
+Read the file at the referenced path. The user will normally pass the path or the issue number directly.
 
 <prd-template>
 
@@ -35,7 +52,6 @@ Check with the user that these modules match their expectations. Check with the 
 number: N
 title: "Short descriptive title"
 date_created: YYYY-MM-DD
-status: needs-triage
 source: "file path, URL, or 'conversation context'"
 issues: []
 ---

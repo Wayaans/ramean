@@ -61,7 +61,24 @@ Iterate until the user approves the breakdown.
 
 ### 5. Publish the issues to the issue tracker
 
-For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. Apply the `needs-triage` triage label so each issue enters the normal triage flow.
+For each approved slice, publish a new issue to the issue tracker. Use the issue body template below. 
+
+Issues and PRDs for this repo live as markdown files in `.scratch/`.
+
+## Conventions
+
+- One feature per directory: `.scratch/<feature-slug>/`
+- The PRD is `.scratch/<feature-slug>/PRD.md`
+- Implementation issues are `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01`
+- Comments and conversation history append to the bottom of the file under a `## Comments` heading
+
+## When a skill says "publish to the issue tracker"
+
+Create a new file under `.scratch/<feature-slug>/` (creating the directory if needed).
+
+## When a skill says "fetch the relevant ticket"
+
+Read the file at the referenced path. The user will normally pass the path or the issue number directly.
 
 Publish issues in dependency order (blockers first) so you can reference real issue identifiers in the "Blocked by" field.
 
@@ -70,7 +87,6 @@ Publish issues in dependency order (blockers first) so you can reference real is
 # Introduction
 
 Name of the implementation issue
-![Status: <status>](https://img.shields.io/badge/status-<status>-<status_color>)
 
 ## What to build
 
