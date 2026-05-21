@@ -1,6 +1,7 @@
 import type { AssistantMessage } from "@mariozechner/pi-ai";
 import type { ContextUsage, ExtensionContext, SessionEntry, Theme } from "@mariozechner/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
+import { OPENCODE_GO_COMPAT_STATUS_KEY } from "../others/opencode-go-compat.js";
 import type { CodexUsageManager } from "./codex-usage.js";
 import { createCodexBadge } from "./codex-usage.js";
 
@@ -176,10 +177,11 @@ export function installFooterBadges(
       },
       render(width: number): string[] {
         refreshDynamicSnapshot(state, resolveThinkingLevel);
+        const extensionStatuses = footerData.getExtensionStatuses();
         const leftPlans = buildLeftPlans(state.snapshot, footerData.getGitBranch());
-        const rightPlans = buildRightPlans(state.snapshot, codexManager);
+        const rightPlans = buildRightPlans(state.snapshot, extensionStatuses, codexManager);
         const lines = buildRequiredLines(width, leftPlans, rightPlans);
-        const statusLine = buildStatusLine(width, footerData.getExtensionStatuses());
+        const statusLine = buildStatusLine(width, extensionStatuses);
         const renderedLines = lines.map((line) => renderFooterLine(theme, line, width));
 
         if (statusLine) {
@@ -343,6 +345,14 @@ export function createStatusBadge(text: string): BadgePlan {
   };
 }
 
+export function createInlineStatusBadge(text: string): BadgePlan {
+  const body = sanitizeStatusText(text);
+  return {
+    kind: "status",
+    variants: [{ body, tone: "muted" }],
+  };
+}
+
 export function negotiateBadgeLine(plans: readonly BadgePlan[], maxWidth: number, gap = 1): ResolvedBadge[] | null {
   if (plans.length === 0) return [];
 
@@ -412,12 +422,21 @@ function buildLeftPlans(snapshot: FooterSnapshot, gitBranch: string | null): Bad
   ].filter(isBadgePlan);
 }
 
-function buildRightPlans(snapshot: FooterSnapshot, codexManager?: CodexUsageManager): BadgePlan[] {
+function buildRightPlans(
+  snapshot: FooterSnapshot,
+  statuses: ReadonlyMap<string, string>,
+  codexManager?: CodexUsageManager,
+): BadgePlan[] {
   const thinkingBadge = snapshot.modelReasoning ? createThinkingBadge(snapshot.thinkingLevel) : undefined;
   const codexBadge = codexManager ? createCodexBadge(codexManager.snapshot) : undefined;
-  return [codexBadge, createProviderBadge(snapshot.provider), createModelBadge(snapshot.modelId, snapshot.provider), thinkingBadge].filter(
-    isBadgePlan,
-  );
+  const inlineStatusBadge = createCompatInlineStatusBadge(statuses);
+  return [
+    codexBadge,
+    inlineStatusBadge,
+    createProviderBadge(snapshot.provider),
+    createModelBadge(snapshot.modelId, snapshot.provider),
+    thinkingBadge,
+  ].filter(isBadgePlan);
 }
 
 function buildRequiredLines(width: number, leftPlans: readonly BadgePlan[], rightPlans: readonly BadgePlan[]): FooterLine[] {
@@ -444,6 +463,7 @@ function buildRequiredLines(width: number, leftPlans: readonly BadgePlan[], righ
 
 function buildStatusLine(width: number, statuses: ReadonlyMap<string, string>): ResolvedBadge[] | undefined {
   const statusPlans = Array.from(statuses.entries())
+    .filter(([key]) => key !== OPENCODE_GO_COMPAT_STATUS_KEY)
     .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
     .map(([, text]) => createStatusBadge(text))
     .filter((plan) => plan.variants[0]?.body);
@@ -460,6 +480,12 @@ function buildStatusLine(width: number, statuses: ReadonlyMap<string, string>): 
 
   if (accepted.length === 0) return undefined;
   return negotiateBadgeLine(accepted, width) ?? undefined;
+}
+
+function createCompatInlineStatusBadge(statuses: ReadonlyMap<string, string>): BadgePlan | undefined {
+  const text = statuses.get(OPENCODE_GO_COMPAT_STATUS_KEY);
+  if (!text) return undefined;
+  return createInlineStatusBadge(text);
 }
 
 function packBadgeGroup(plans: readonly BadgePlan[], width: number): ResolvedBadge[][] {

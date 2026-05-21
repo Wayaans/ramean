@@ -16,6 +16,7 @@ import { registerGitGuardrailsExtension } from "./others/git-guardrails.js";
 import { registerHandoffCommand } from "./others/handoff.js";
 import { registerMinimalModeExtension } from "./others/minimal-mode.js";
 import { registerNotifyExtension } from "./others/notify.js";
+import { registerOpenCodeGoCompatExtension } from "./others/opencode-go-compat.js";
 import { registerToolsCompactionExtension } from "./others/tools-compaction.js";
 import { isSubagentEnabled } from "./subagents/config.js";
 import { registerSubagentRuntime } from "./subagents/runtime.js";
@@ -28,6 +29,7 @@ export default function rameanExtensionPack(pi: ExtensionAPI, context?: Extensio
   const runningAsSubagent = registerSubagentRuntime(pi);
   registerCustomToolsExtension(pi);
   registerGitGuardrailsExtension(pi, cwd);
+  registerOpenCodeGoCompatExtension(pi);
 
   if (runningAsSubagent) {
     return;

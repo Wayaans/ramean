@@ -8,6 +8,7 @@ import {
   createProviderBadge,
   installFooterBadges,
 } from "../UI/footer-badges.js";
+import { OPENCODE_GO_COMPAT_STATUS_KEY } from "../others/opencode-go-compat.js";
 
 test("path badge keeps the path separate from git branch", () => {
   const badge = createPathBadge("/Users/test/worktrees/ramean/project");
@@ -101,6 +102,57 @@ test("footer invalidate refreshes the thinking badge", () => {
   component.invalidate();
 
   assert.match(component.render(200).join("\n"), /\[◐ high\]/);
+});
+
+test("footer renders opencode-go cache status inline beside provider", () => {
+  let footerFactory: ((tui: any, theme: any, footerData: any) => any) | undefined;
+  const state = createFooterRenderState();
+  state.snapshot = {
+    cwd: "/tmp/project",
+    totals: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalCost: 0 },
+    usingSubscription: false,
+    provider: "opencode-go",
+    modelId: "qwen3.6-plus",
+    modelReasoning: false,
+  };
+
+  installFooterBadges(
+    {
+      ui: {
+        setFooter(factory: any) {
+          footerFactory = factory;
+        },
+      },
+    } as any,
+    state,
+  );
+
+  assert.ok(footerFactory);
+
+  const component = footerFactory!(
+    { requestRender() {} },
+    { fg(_token: string, text: string) { return text; } },
+    {
+      getGitBranch() {
+        return null;
+      },
+      getExtensionStatuses() {
+        return new Map([
+          [OPENCODE_GO_COMPAT_STATUS_KEY, "cache 12.3k"],
+          ["other", "watching"],
+        ]);
+      },
+      onBranchChange() {
+        return () => {};
+      },
+    },
+  );
+
+  const rendered = component.render(200).join("\n");
+
+  assert.match(rendered, /\[cache 12\.3k\].*\[☁ opencode-go\]/);
+  assert.equal(rendered.match(/cache 12\.3k/g)?.length, 1);
+  assert.match(rendered, /\[watching\]/);
 });
 
 test("footer branch watcher requests render and shows the latest branch", () => {

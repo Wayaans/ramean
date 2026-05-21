@@ -118,6 +118,23 @@ test("manager returns undefined when not using OAuth", async () => {
   assert.equal(result, undefined);
 });
 
+test("manager clears stale data when switching away from openai-codex provider", async () => {
+  const ref = makeRenderRef();
+  const manager = new CodexUsageManager(ref);
+
+  (manager as any).current = {
+    fiveHour: { usedPercent: 42, windowSeconds: 18000, resetAt: Date.now() / 1000 + 3600 },
+    fetchedAt: Date.now(),
+  };
+  (manager as any).lastFetchMs = Date.now();
+
+  const result = await manager.refresh(makeMockCtx({ provider: "anthropic" }));
+
+  assert.equal(result, undefined);
+  assert.equal(manager.hasData, false);
+  assert.equal(ref.count, 1);
+});
+
 test("manager debounces within 60 second window", async () => {
   const ref = makeRenderRef();
   const manager = new CodexUsageManager(ref);

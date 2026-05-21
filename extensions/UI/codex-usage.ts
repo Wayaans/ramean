@@ -151,9 +151,14 @@ function progressLine(label: string, window: UsageWindow | undefined): string {
 
 // --- Fetch logic ---
 
+function canShowCodexUsage(ctx: ExtensionContext): boolean {
+  const model = ctx.model;
+  return Boolean(model && isOpenAICodexProvider(model.provider) && ctx.modelRegistry.isUsingOAuth(model));
+}
+
 async function fetchUsage(ctx: ExtensionContext): Promise<CodexUsageSnapshot | undefined> {
   const model = ctx.model;
-  if (!model || !isOpenAICodexProvider(model.provider) || !ctx.modelRegistry.isUsingOAuth(model)) {
+  if (!canShowCodexUsage(ctx) || !model) {
     return undefined;
   }
 
@@ -204,6 +209,12 @@ export class CodexUsageManager {
   }
 
   async refresh(ctx: ExtensionContext): Promise<CodexUsageSnapshot | undefined> {
+    if (!canShowCodexUsage(ctx)) {
+      this.clear();
+      this.renderRef.requestRender?.();
+      return undefined;
+    }
+
     const now = Date.now();
     if (now - this.lastFetchMs < DEBOUNCE_MS && this.inFlight) return this.inFlight;
     if (now - this.lastFetchMs < DEBOUNCE_MS && this.current) return this.current;
