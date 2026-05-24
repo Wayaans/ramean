@@ -1,5 +1,13 @@
 # AGENTS.md
 
+## Agent skills
+
+Before using ask-me, ask-me-with-docs, create-prd, create-plans, assessing, build-me, setup-me, or related agent skill workflows, read and respect the relevant setup docs under `docs/agents/`:
+
+- `docs/agents/domain-structure.md` for context docs, design docs, ADRs, and domain layout.
+- `docs/agents/work-tracker.md` for PRDs, plans, assessment gate status, reviews, artifact paths, testing, and review policy.
+- `docs/agents/interaction-policy.md` for question delivery and shared question format.
+
 ## Source of truth
 
 - Always read the relevant files in `docs/` before making non-trivial changes.
