@@ -72,7 +72,6 @@ export function registerDispatchTool(pi: ExtensionAPI): void {
       "Keep the task readable and well-organized because the expanded dispatch UI shows the delegated task text directly.",
       "When multiple subagents are needed, issue multiple top-level dispatch calls in parallel instead of looking for an orchestration tool.",
       "Do not ask a subagent to dispatch other subagents.",
-      "After a designer dispatch completes, treat its output as authoritative for UI/UX decisions. Do not directly edit, rewrite, or overwrite files the designer produced or modified. If adjustments are needed, dispatch the designer again with a follow-up task instead of making changes yourself. You may only add new files or edit non-UI files that the designer did not touch.",
     ],
     parameters: DispatchParams,
     renderShell: "self",

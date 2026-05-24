@@ -5,40 +5,9 @@ import type { DispatchDetails } from "../types/subagents.js";
 
 type UiContext = Pick<ExtensionContext, "ui"> | Pick<ExtensionCommandContext, "ui">;
 
-const SPINNER_INTERVAL_MS = 500;
-
 const activeStandaloneDispatches = new Map<string, DispatchDetails>();
 let dispatchWidgetActive = false;
 let lastRenderedDispatchWidget: string | undefined;
-let spinnerInterval: ReturnType<typeof setInterval> | undefined;
-let spinnerCtx: UiContext | undefined;
-
-function startSpinnerTimer(ctx: UiContext): void {
-  if (spinnerInterval !== undefined) return;
-  spinnerCtx = ctx;
-  spinnerInterval = setInterval(() => {
-    if (!spinnerCtx) return;
-    try {
-      for (const details of activeStandaloneDispatches.values()) {
-        if (details.status === "running") {
-          details.spinnerFrame = (details.spinnerFrame + 1) % 4;
-        }
-      }
-      renderStandaloneDispatchWidget(spinnerCtx);
-    } catch {
-      // Silently stop the timer if the UI context becomes invalid
-      stopSpinnerTimer();
-    }
-  }, SPINNER_INTERVAL_MS);
-}
-
-function stopSpinnerTimer(): void {
-  if (spinnerInterval !== undefined) {
-    clearInterval(spinnerInterval);
-    spinnerInterval = undefined;
-    spinnerCtx = undefined;
-  }
-}
 
 function renderStandaloneDispatchWidget(ctx: UiContext): void {
   if (activeStandaloneDispatches.size === 0) {
@@ -50,7 +19,6 @@ function renderStandaloneDispatchWidget(ctx: UiContext): void {
     }
     dispatchWidgetActive = false;
     lastRenderedDispatchWidget = undefined;
-    stopSpinnerTimer();
     return;
   }
 
@@ -68,7 +36,6 @@ function renderStandaloneDispatchWidget(ctx: UiContext): void {
     [widget],
     { placement: "aboveEditor" },
   );
-  startSpinnerTimer(ctx);
 }
 
 export function updateStandaloneDispatchWidget(ctx: UiContext, key: string, details: DispatchDetails): void {
@@ -83,6 +50,5 @@ export function clearStandaloneDispatchWidget(ctx: UiContext, key: string): void
 
 export function resetStandaloneDispatchWidget(ctx: UiContext): void {
   activeStandaloneDispatches.clear();
-  stopSpinnerTimer();
   renderStandaloneDispatchWidget(ctx);
 }

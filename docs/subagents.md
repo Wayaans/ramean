@@ -39,12 +39,6 @@ Reference for the ramean subagent extension.
   - state is session-local and resets on reload
 - `/agent:status`
   - shows current subagent execution path, runtime, prompt state, and whether the extension is enabled
-- `/refine-my-prompt <your prompt>`
-  - sends the provided text to an isolated LLM call with instructions to rewrite it as a clearer, more effective prompt
-  - replaces the editor content with the refined prompt so you can edit and submit
-  - runs in a separate in-memory session with no tools, so it never touches your files or pollutes session history
-  - model is configurable (see Config section below)
-  - only works in interactive mode
 
 ## Tools
 
@@ -120,25 +114,6 @@ Notes:
 - if a configured subagent model is unavailable, the subagent falls back to the active main-agent model with `low` thinking
 - if `enabled: false`, the extension does not register `dispatch` or `/agent:spawn`
 - even when disabled, `/agent`, `/agent:expand`, `/agent:insert`, `/agent:prompt`, and `/agent:status` stay available
-
-### Refine-my-prompt config
-
-Separate extension entry to control the `/refine-my-prompt` command:
-
-```yaml
-- extension: refine-my-prompt
-  enabled: true
-  model:
-    provider: github-copilot
-    model: gpt-5.4-mini
-    thinking: low
-```
-
-Notes:
-
-- if `enabled: false`, the `/refine-my-prompt` command is not registered
-- uses an isolated in-memory session with no tools, so it never modifies files
-- set `provider`, `model`, and `thinking` to any model available in your pi model registry
 
 ## Prompt overrides
 
@@ -226,6 +201,4 @@ Core implementation lives under:
 - `extensions/commands/agent-prompt.ts`
 - `extensions/commands/agent-spawn.ts`
 - `extensions/commands/agent-status.ts`
-- `extensions/commands/refine-my-prompt.ts`
-- `extensions/core/refine-config.ts`
 - `extensions/subagents/dispatch-expansion.ts`

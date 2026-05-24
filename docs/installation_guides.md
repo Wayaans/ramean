@@ -138,6 +138,11 @@ Current subagent execution state:
   - triggers custom session compaction using `github-copilot/gemini-3-flash-preview`
 - `/handoff <goal>`
   - generates a focused prompt for a new session from the current conversation
+- `/flair:<skill-dir>`
+  - auto-registers one command per ramean package skill under `skills/`
+  - invokes the matching skill like a normal `/skill:<name>` call, including the visible `[skill]` card
+  - forwards optional args as the follow-up user text after the skill block
+  - current bundled helpers: `/flair:commit`, `/flair:tdd-lite`, `/flair:tdd-full`
 - `/guardrails:git`
   - toggles git-guardrails on or off
   - optional args: `enable`, `disable`, and `status`

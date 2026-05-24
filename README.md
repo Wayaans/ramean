@@ -14,11 +14,9 @@ Right now this package ships:
   - ramean keeps these prioritized ahead of bash without overriding explicit Pi tool allowlists such as `--tools` or `--no-tools`
 - tools support commands: `/tools:status` and `/tools:compaction`
 - custom compaction using `github-copilot/gemini-3-flash-preview`
-- extra extensions: handoff, notify, minimal-mode, footer-badges, git-guardrails, codex-usage, and OpenCode Go compatibility patches
-  - OpenCode Go patches fix prompt cache markers for `opencode-go/qwen3.6-plus` and reasoning replay for `opencode-go/kimi-k2.6`, including subagents using those models
+- extra extensions: handoff, notify, minimal-mode, footer-badges, and git-guardrails
   - minimal-mode also adds a subtler animated working indicator and clearer compact previews for `web_fetch` and `find_docs`
   - footer-badges replaces Pi's default interactive footer with compact path, branch, usage, cost, provider, model, and thinking badges
-  - codex-usage shows a `◷ N%` badge in the footer when using `openai-codex` models, with threshold coloring (muted < 75%, warning 75-90%, error 90%+), and provides an enhanced `/codex-limit` command with 5-hour and weekly progress bars
 
 ## Included today
 
@@ -32,10 +30,8 @@ Right now this package ships:
 - [x] minimal tools
 - [x] footer badges
 - [x] git guardrails
-- [x] codex usage
-- [x] OpenCode Go compatibility patches
 
-Useful commands include `/agent`, `/agent:expand`, `/agent:insert`, `/agent:prompt`, `/agent:spawn`, `/agent:status`, `/tools:status`, `/tools:compaction`, `/handoff`, and `/guardrails:git`.
+Useful commands include `/agent`, `/agent:expand`, `/agent:insert`, `/agent:prompt`, `/agent:spawn`, `/agent:status`, `/flair:<skill-dir>`, `/tools:status`, `/tools:compaction`, `/handoff`, and `/guardrails:git`.
 
 Routing at a glance:
 
@@ -51,6 +47,8 @@ Dispatch also adds a lightweight role-specific reminder at run time so `agent` a
 `/agent:expand` and `Ctrl+Shift+O` control dispatch-only expansion for subagent dispatch cards without changing other tool output. `/agent:expand` supports `toggle`, `expand`, `collapse`, and `status`. This preference is session-local and resets on reload.
 
 While the standalone dispatch widget is active above the editor, ramean also swaps Pi's normal streaming working indicator to a matching animated dispatch spinner. Running dispatch cards keep live progress, but they now refresh on meaningful progress changes instead of every spinner tick so oversized expanded cards stay stable in smaller terminals.
+
+`/flair:<skill-dir>` loads the matching ramean package skill from `skills/` and invokes it like a normal `/skill:<name>` call, including the visible `[skill]` card and any optional trailing args as the follow-up user text. Current bundled helpers include `/flair:commit`, `/flair:tdd-lite`, and `/flair:tdd-full`.
 
 `/guardrails:git` toggles the git-guardrails extension, which is disabled by default and blocks common dangerous git bash commands such as `git push` and `git reset --hard` when enabled. The command now leaves a visible status message showing whether guardrails are enabled or disabled and where the project override lives.
 

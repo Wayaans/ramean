@@ -13,7 +13,7 @@ import type {
   DispatchStatus,
 } from "../types/subagents.js";
 import type { ToolStatusRow, ToolsStatusMessageDetails } from "../types/tools.js";
-import { renderStaticStatusIcon, renderStatusIcon } from "./status.js";
+import { renderStatusIcon } from "./status.js";
 import { buildGitGuardrailsStatusSummary } from "../others/git-guardrails-status.js";
 import type { GitGuardrailsStatusMessageDetails } from "../types/git-guardrails.js";
 
@@ -93,7 +93,7 @@ function formatExpandedDispatchTask(task: string): string {
 function createCollapsedDispatchLines(details: DispatchDetails, theme: any): string[] {
   const lines: string[] = [];
   lines.push(
-    `${renderStaticStatusIcon(theme, details.status)} ${theme.fg("toolTitle", details.title)} ${theme.fg("muted", "⟩")} ${theme.fg("text", formatDispatchTaskPreview(details.task))}`,
+    `${renderStatusIcon(theme, details.status, details.spinnerFrame)} ${theme.fg("toolTitle", details.title)} ${theme.fg("muted", "⟩")} ${theme.fg("text", formatDispatchTaskPreview(details.task))}`,
   );
 
   if (details.status === "running") {
@@ -110,7 +110,7 @@ function createExpandedDispatchComponent(details: DispatchDetails, theme: any) {
   const warningSummary = buildWarningSummary(details);
   container.addChild(
     new Text(
-      `${renderStaticStatusIcon(theme, details.status)} ${theme.fg("toolTitle", details.title)} ${theme.fg("muted", "⟩")} ${formatDispatchTaskPreview(details.task)}`,
+      `${renderStatusIcon(theme, details.status, details.spinnerFrame)} ${theme.fg("toolTitle", details.title)} ${theme.fg("muted", "⟩")} ${formatDispatchTaskPreview(details.task)}`,
       0,
       0,
     ),
