@@ -21,8 +21,8 @@
     glob: true
     list: true
     todo_write: true
-    question: true
-    questionnaire: true
+    question: false
+    questionnaire: false
     web_fetch: false
     find_docs: true
 
@@ -40,3 +40,10 @@
 
 - extension: git-guardrails
   enabled: false
+
+- extension: refine-my-prompt
+  enabled: true
+  model:
+    provider: opencode-go
+    model: qwen3.6-plus
+    thinking: medium

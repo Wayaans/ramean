@@ -11,6 +11,12 @@
   "pi": {
     "extensions": [
       "./extensions/index.ts"
+    ],
+    "skills": [
+      "./skills"
+    ],
+    "themes": [
+      "./themes"
     ]
   },
   "dependencies": {

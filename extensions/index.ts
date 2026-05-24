@@ -6,7 +6,7 @@ import { registerAgentInsertCommand } from "./commands/agent-insert.js";
 import { registerAgentPromptCommand } from "./commands/agent-prompt.js";
 import { registerAgentSpawnCommand } from "./commands/agent-spawn.js";
 import { registerAgentStatusCommand } from "./commands/agent-status.js";
-import { registerFlairCommands } from "./commands/flair.js";
+import { registerRefineMyPromptCommand } from "./commands/refine-my-prompt.js";
 import { registerGuardrailsGitCommand } from "./commands/guardrails-git.js";
 import { registerToolsCompactionCommand } from "./commands/tools-compaction.js";
 import { registerToolsStatusCommand } from "./commands/tools-status.js";
@@ -16,6 +16,7 @@ import { registerGitGuardrailsExtension } from "./others/git-guardrails.js";
 import { registerHandoffCommand } from "./others/handoff.js";
 import { registerMinimalModeExtension } from "./others/minimal-mode.js";
 import { registerNotifyExtension } from "./others/notify.js";
+import { registerOpenCodeGoCompatExtension } from "./others/opencode-go-compat.js";
 import { registerToolsCompactionExtension } from "./others/tools-compaction.js";
 import { isSubagentEnabled } from "./subagents/config.js";
 import { registerSubagentRuntime } from "./subagents/runtime.js";
@@ -28,6 +29,7 @@ export default function rameanExtensionPack(pi: ExtensionAPI, context?: Extensio
   const runningAsSubagent = registerSubagentRuntime(pi);
   registerCustomToolsExtension(pi);
   registerGitGuardrailsExtension(pi, cwd);
+  registerOpenCodeGoCompatExtension(pi);
 
   if (runningAsSubagent) {
     return;
@@ -54,7 +56,7 @@ export default function rameanExtensionPack(pi: ExtensionAPI, context?: Extensio
   registerAgentInsertCommand(pi);
   registerAgentStatusCommand(pi);
   registerAgentPromptCommand(pi);
-  registerFlairCommands(pi);
+  registerRefineMyPromptCommand(pi, cwd);
 
   const optionalExtensions = loadMergedOptionalExtensionsState(cwd);
   if (optionalExtensions.minimalMode) {

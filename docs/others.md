@@ -74,6 +74,22 @@ Config entry:
 
 If disabled, ramean keeps the normal tool display behavior.
 
+## OpenCode Go compatibility patches
+
+Behavior:
+
+- for `opencode-go/qwen3.6-plus`:
+  - adds Anthropic-style `cache_control` breakpoints to the serialized provider request before it is sent
+  - marks the system prompt, last tool definition, and latest user/assistant text block as cacheable
+  - publishes a `cache <size>` footer status while the target provider/model is selected
+  - when `footer-badges` is enabled, that cache status is rendered inline beside the provider/model badges instead of on a separate status line
+- for `opencode-go/kimi-k2.6`:
+  - normalizes replayed assistant `reasoning` fields to OpenAI-compatible `reasoning_content`
+  - removes the non-standard `reasoning` field from replayed assistant messages before the provider request is sent
+- both patches also apply inside subagent runtimes when a subagent resolves to the matching provider/model
+
+These are narrow compatibility patches for OpenCode Go model behavior. Other providers and models are left unchanged.
+
 ## Footer badges
 
 Behavior:
@@ -82,6 +98,7 @@ Behavior:
 - shows the current working directory and git branch as separate badges
 - shows context usage, accumulated assistant token totals, and accumulated assistant cost
 - shows provider, model, and current thinking level when the selected model exposes reasoning
+- shows Codex usage only while the selected model uses an `openai-codex` OAuth provider, and hides it immediately after switching away
 - keeps extension status messages on a separate line only when they fit
 - uses Pi's current session lifecycle correctly:
   - installs on `session_start`

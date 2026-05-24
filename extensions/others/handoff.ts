@@ -117,15 +117,16 @@ export function registerHandoffCommand(pi: ExtensionAPI): void {
 
       const newSessionResult = await ctx.newSession({
         parentSession: currentSessionFile,
-      });
+        withSession: async (newCtx: { ui: typeof ctx.ui }) => {
+          newCtx.ui.setEditorText(editedPrompt);
+          newCtx.ui.notify("Handoff ready. Submit when ready.", "info");
+        },
+      } as Parameters<typeof ctx.newSession>[0]);
 
       if (newSessionResult.cancelled) {
-        ctx.ui.notify("New session cancelled", "info");
+        // No stale ctx usage needed; cancellation was already handled by newSession
         return;
       }
-
-      ctx.ui.setEditorText(editedPrompt);
-      ctx.ui.notify("Handoff ready. Submit when ready.", "info");
     },
   });
 }

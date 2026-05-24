@@ -191,10 +191,21 @@ function isNoisyToolSnippet(text: string | undefined): boolean {
   if (!text) return true;
   const trimmed = text.trim();
   if (!trimmed) return true;
+  // JSON objects/arrays from tool results are usually too verbose
+  if (/^[{\[]/.test(trimmed)) return true;
+  // Allow single-line output up to a reasonable length
+  if (!trimmed.includes("\n") && trimmed.length <= 120) return false;
+  // Multiline content is typically too noisy for inline progress
   if (trimmed.includes("\n")) return true;
-  if (trimmed.length > 80) return true;
-  if (/^[\[{]/.test(trimmed)) return true;
-  return false;
+  return trimmed.length > 120;
+}
+
+function formatToolStatus(status: "running" | "success" | "error"): string {
+  switch (status) {
+    case "error": return "error";
+    case "success": return "done";
+    default: return "running...";
+  }
 }
 
 function formatToolProgress(
@@ -204,12 +215,18 @@ function formatToolProgress(
   status: "running" | "success" | "error" = "running",
 ): string {
   const base = formatToolCall(name, args);
+
   if (status === "error") {
-    return `${base} — error`;
+    const errorText = snippet?.trim()
+      ? summarizeText(snippet.trim(), 60)
+      : "error";
+    return `${base} — ${errorText}`;
   }
 
   if (isNoisyToolSnippet(snippet)) {
-    return status === "success" ? `${base} — done` : base;
+    // Show status label for common tools even when output is noisy
+    const statusLabel = formatToolStatus(status);
+    return `${base} — ${statusLabel}`;
   }
 
   return `${base} — ${summarizeText(snippet?.trim() ?? "", 80)}`;

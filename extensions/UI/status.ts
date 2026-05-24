@@ -43,6 +43,24 @@ export function renderStatusIcon(theme: ThemeLike, status: DispatchStatus, frame
   return theme.fg(getStatusColor(status), getStatusGlyph(status, frame));
 }
 
+export function getStaticStatusGlyph(status: DispatchStatus): string {
+  switch (status) {
+    case "running":
+      return "▶";
+    case "success":
+      return "✔";
+    case "failed":
+      return "✖";
+    case "waiting":
+    default:
+      return "❖";
+  }
+}
+
+export function renderStaticStatusIcon(theme: ThemeLike, status: DispatchStatus): string {
+  return theme.fg(getStatusColor(status), getStaticStatusGlyph(status));
+}
+
 export function renderStatusLabel(theme: ThemeLike, status: DispatchStatus, label: string, frame = 0): string {
   return `${renderStatusIcon(theme, status, frame)} ${theme.fg("text", label)}`;
 }
