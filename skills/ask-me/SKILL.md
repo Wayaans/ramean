@@ -5,7 +5,11 @@ description: Relentlessly interviews the user about a plan or design until the d
 
 # Ask Me
 
-Interview the user about a plan or design until the decision tree is clear enough for the next artifact, plan, or implementation. Resolve dependencies in order, ask only questions that can change the outcome, and stop when remaining uncertainty no longer matters.
+Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
+
+Ask the questions one at a time, waiting for feedback on each question before continuing.
+
+If a question can be answered by exploring the codebase, explore the codebase instead.
 
 ## Setup contract
 
